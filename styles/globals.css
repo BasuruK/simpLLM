@@ -1,3 +1,22 @@
 @import "tailwindcss";
 
-@config "../tailwind.config.js"
+@config "../tailwind.config.js";
+
+/* Draft.js Editor Styles */
+.public-DraftEditor-content {
+  min-height: 100%;
+}
+
+.public-DraftEditorPlaceholder-root {
+  color: hsl(var(--nextui-default-400));
+  position: absolute;
+  pointer-events: none;
+}
+
+.DraftEditor-root {
+  height: 100%;
+}
+
+.DraftEditor-editorContainer {
+  height: 100%;
+}
