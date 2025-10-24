@@ -1,9 +1,22 @@
 import OpenAI from "openai";
+import { getDecryptedApiKey } from "./secure-storage";
 
-const openai = new OpenAI({
-  apiKey: "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",
-  dangerouslyAllowBrowser: true,
-});
+// Get API key from secure storage
+function getApiKey(): string {
+  const apiKey = getDecryptedApiKey();
+  if (!apiKey) {
+    throw new Error("API key not found. Please login first.");
+  }
+  return apiKey;
+}
+
+// Initialize OpenAI client lazily
+function getOpenAIClient(): OpenAI {
+  return new OpenAI({
+    apiKey: getApiKey(),
+    dangerouslyAllowBrowser: true,
+  });
+}
 
 /**
  * Streams OpenAI-compatible API responses as newline-delimited JSON events
@@ -54,7 +67,7 @@ export async function extractDataFromFile(
       const uploadResponse = await fetch('https://api.openai.com/v1/files', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${openai.apiKey}`,
+          'Authorization': `Bearer ${getApiKey()}`,
         },
         body: formData,
       });
@@ -104,7 +117,7 @@ export async function extractDataFromFile(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${openai.apiKey}`,
+        'Authorization': `Bearer ${getApiKey()}`,
       },
       body: JSON.stringify(requestBody),
     });
