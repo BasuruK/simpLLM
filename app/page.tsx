@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@heroui/button";
 import { Card } from "@heroui/card";
 import { Image } from "@heroui/image";
@@ -9,8 +9,15 @@ import { Spinner } from "@heroui/spinner";
 import { extractDataFromFile } from "@/lib/openai";
 import { UploadIcon, CopyIcon, TrashIcon, SparklesIcon } from "@/components/icons";
 import { CodeEditor } from "@/components/code-editor";
+import { MarkdownRenderer } from "@/components/markdown-renderer";
+import { LoginScreen } from "@/components/login-screen";
+import { Navbar } from "@/components/navbar";
+import { isAuthenticated, loadCredentials, getUsername, clearCredentials } from "@/lib/secure-storage";
 
 export default function Home() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [username, setUsername] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
@@ -18,6 +25,8 @@ export default function Home() {
   const [isDataExtracted, setIsDataExtracted] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractedText, setExtractedText] = useState("");
+  const [jsonContent, setJsonContent] = useState("");
+  const [markdownContent, setMarkdownContent] = useState("");
   const [isCopied, setIsCopied] = useState(false);
   const [hasReceivedData, setHasReceivedData] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -48,6 +57,78 @@ export default function Home() {
     fileInputRef.current?.click();
   };
 
+  // Check authentication on mount
+  useEffect(() => {
+    const checkAuth = () => {
+      const authenticated = isAuthenticated();
+      setIsLoggedIn(authenticated);
+      if (authenticated) {
+        const user = getUsername();
+        setUsername(user);
+      }
+      setIsCheckingAuth(false);
+    };
+    
+    checkAuth();
+  }, []);
+
+  const handleLogin = () => {
+    const user = getUsername();
+    setUsername(user);
+    setIsLoggedIn(true);
+  };
+
+  const handleLogout = () => {
+    clearCredentials();
+    setIsLoggedIn(false);
+    setUsername(null);
+    // Clear all app state
+    handleClearImage();
+  };
+
+  // Parse extracted text into JSON and Markdown sections
+  useEffect(() => {
+    if (extractedText) {
+      // Try to find JSON block (between ```json and ```)
+      const jsonMatch = extractedText.match(/```json\s*([\s\S]*?)```/);
+      
+      if (jsonMatch) {
+        // Extract JSON content
+        setJsonContent(jsonMatch[1].trim());
+        
+        // Extract everything after the JSON block as markdown
+        const afterJson = extractedText.split('```json')[1];
+        if (afterJson) {
+          const afterJsonBlock = afterJson.split('```')[1];
+          if (afterJsonBlock) {
+            const trimmedMarkdown = afterJsonBlock.trim();
+            // Only set markdown content if there's actual content (not empty or just whitespace)
+            setMarkdownContent(trimmedMarkdown.length > 0 ? trimmedMarkdown : "");
+          } else {
+            setMarkdownContent("");
+          }
+        } else {
+          setMarkdownContent("");
+        }
+      } else {
+        // No JSON block found, try to parse as pure JSON or treat as markdown
+        try {
+          const parsed = JSON.parse(extractedText);
+          setJsonContent(JSON.stringify(parsed, null, 2));
+          setMarkdownContent("");
+        } catch (e) {
+          // If not valid JSON, treat everything as markdown
+          setJsonContent("");
+          setMarkdownContent(extractedText);
+        }
+      }
+    } else {
+      // Clear both when extractedText is empty
+      setJsonContent("");
+      setMarkdownContent("");
+    }
+  }, [extractedText]);
+
   const handleClearImage = () => {
     // Revoke the PDF URL to free memory
     if (pdfUrl) {
@@ -61,6 +142,8 @@ export default function Home() {
     setIsExtracting(false);
     setHasReceivedData(false);
     setExtractedText("");
+    setJsonContent("");
+    setMarkdownContent("");
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -125,25 +208,50 @@ export default function Home() {
     }
   };
 
+  // Show loading while checking authentication
+  if (isCheckingAuth) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
+
+  // Show login screen if not authenticated
+  if (!isLoggedIn) {
+    return (
+      <div className="flex items-center justify-center h-[calc(100vh-80px)] overflow-hidden">
+        <div className="w-full max-w-md scale-90">
+          <LoginScreen onLogin={handleLogin} />
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <section className="flex flex-col items-center h-full min-h-[calc(100vh-200px)] py-8 gap-6 px-4">
+    <>
+      <Navbar username={username} onLogout={handleLogout} />
+      <section className="flex flex-col items-center justify-center flex-1 py-8 gap-6 px-4">
       {selectedFile ? (
-        <div className="w-full max-w-7xl flex items-center justify-center min-h-[70vh]">
-          <div className={`w-full grid gap-6 transition-all duration-10000 ease-in-out ${
-            isDataExtracted 
-              ? 'grid-cols-1 lg:grid-cols-2' 
-              : 'grid-cols-1 max-w-2xl'
-          }`}>
+        <>
+          <div className="w-full max-w-7xl flex items-center justify-center">
+            <div className={`w-full grid gap-6 transition-all duration-10000 ease-in-out ${
+              isDataExtracted 
+                ? 'grid-cols-1 lg:grid-cols-2' 
+                : 'grid-cols-1 max-w-2xl'
+            }`}>
             {/* File Preview Card */}
             <Card className={`p-4 transition-all duration-10000 ease-in-out ${
               isDataExtracted ? '' : 'mx-auto w-full'
             }`}>
               {fileType === 'image' && selectedImage ? (
-                <Image
-                  src={selectedImage}
-                  alt="Uploaded preview"
-                  className="w-full h-auto max-h-[60vh] object-contain"
-                />
+                <div className="w-full h-[60vh] border border-default-200 rounded-lg overflow-auto bg-default-50 dark:bg-default-100">
+                  <Image
+                    src={selectedImage}
+                    alt="Uploaded preview"
+                    className="w-full h-auto"
+                  />
+                </div>
               ) : fileType === 'pdf' && pdfUrl ? (
                 <div className="w-full h-[60vh] border border-default-200 rounded-lg overflow-hidden">
                   <iframe
@@ -267,36 +375,57 @@ export default function Home() {
             )}
           </div>
         </div>
+
+        {/* Markdown Section - Full Width Below - Only show after extraction is complete */}
+        {isDataExtracted && !isExtracting && markdownContent && (
+          <Card className="w-full max-w-7xl p-6">
+            <h2 className="text-lg font-semibold mb-4">Extracted Data Table</h2>
+            <MarkdownRenderer content={markdownContent} />
+          </Card>
+        )}
+      </>
       ) : (
-        <div className="flex-1 flex items-center justify-center text-center text-default-400">
+        <div className="flex flex-col items-center justify-center text-center text-default-400 flex-1">
           <div>
             <p className="text-lg">No file uploaded yet</p>
             <p className="text-sm mt-2">Click the button below to upload an image or PDF</p>
           </div>
+          
+          {/* Upload Button when no file */}
+          <div className="mt-8">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,application/pdf"
+              onChange={handleImageUpload}
+              className="hidden"
+            />
+            <Button
+              color="primary"
+              size="lg"
+              variant="shadow"
+              onClick={handleButtonClick}
+              startContent={<UploadIcon size={20} />}
+            >
+              Upload File
+            </Button>
+          </div>
         </div>
       )}
 
-      {/* Upload Button at Bottom */}
-      <div className="flex items-center justify-center pb-8 pt-6">
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*,application/pdf"
-          onChange={handleImageUpload}
-          className="hidden"
-        />
-        {!selectedFile && (
-          <Button
-            color="primary"
-            size="lg"
-            variant="shadow"
-            onClick={handleButtonClick}
-            startContent={<UploadIcon size={20} />}
-          >
-            Upload File
-          </Button>
-        )}
-      </div>
+      {/* Upload Button at Bottom - Only show when file is selected */}
+      {selectedFile && (
+        <div className="flex items-center justify-center pb-4 pt-6">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,application/pdf"
+            onChange={handleImageUpload}
+            className="hidden"
+          />
+        </div>
+      )}
     </section>
+    </>
   );
 }
