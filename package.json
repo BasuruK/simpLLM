@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint --fix",
-    "electron:dev": "concurrently \"npm run dev\" \"wait-on http://localhost:3000 && cross-env NODE_ENV=development npm run electron:start\"",
+    "electron:dev": "tsc -p electron/tsconfig.json && concurrently \"npm run dev\" \"wait-on http://localhost:3000 && cross-env NODE_ENV=development electron .\"",
     "electron:start": "tsc -p electron/tsconfig.json && electron .",
     "electron:build": "npm run build && tsc -p electron/tsconfig.json && electron-builder",
     "electron:build:win": "npm run build && tsc -p electron/tsconfig.json && electron-builder --win",
