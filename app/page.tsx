@@ -9,7 +9,7 @@ import { Spinner } from "@heroui/spinner";
 import { extractDataFromFile } from "@/lib/openai";
 import { UploadIcon, CopyIcon, TrashIcon, SparklesIcon } from "@/components/icons";
 import { CodeEditor } from "@/components/code-editor";
-import { MarkdownRenderer } from "@/components/markdown-renderer";
+import { JsonTable } from "@/components/json-table";
 import { LoginScreen } from "@/components/login-screen";
 import { Navbar } from "@/components/navbar";
 import { isAuthenticated, loadCredentials, getUsername, clearCredentials } from "@/lib/secure-storage";
@@ -26,7 +26,6 @@ export default function Home() {
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractedText, setExtractedText] = useState("");
   const [jsonContent, setJsonContent] = useState("");
-  const [markdownContent, setMarkdownContent] = useState("");
   const [isCopied, setIsCopied] = useState(false);
   const [hasReceivedData, setHasReceivedData] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -86,7 +85,7 @@ export default function Home() {
     handleClearImage();
   };
 
-  // Parse extracted text into JSON and Markdown sections
+  // Parse extracted text into JSON
   useEffect(() => {
     if (extractedText) {
       // Try to find JSON block (between ```json and ```)
@@ -95,37 +94,19 @@ export default function Home() {
       if (jsonMatch) {
         // Extract JSON content
         setJsonContent(jsonMatch[1].trim());
-        
-        // Extract everything after the JSON block as markdown
-        const afterJson = extractedText.split('```json')[1];
-        if (afterJson) {
-          const afterJsonBlock = afterJson.split('```')[1];
-          if (afterJsonBlock) {
-            const trimmedMarkdown = afterJsonBlock.trim();
-            // Only set markdown content if there's actual content (not empty or just whitespace)
-            setMarkdownContent(trimmedMarkdown.length > 0 ? trimmedMarkdown : "");
-          } else {
-            setMarkdownContent("");
-          }
-        } else {
-          setMarkdownContent("");
-        }
       } else {
-        // No JSON block found, try to parse as pure JSON or treat as markdown
+        // No JSON block found, try to parse as pure JSON
         try {
           const parsed = JSON.parse(extractedText);
           setJsonContent(JSON.stringify(parsed, null, 2));
-          setMarkdownContent("");
         } catch (e) {
-          // If not valid JSON, treat everything as markdown
+          // If not valid JSON, set empty
           setJsonContent("");
-          setMarkdownContent(extractedText);
         }
       }
     } else {
-      // Clear both when extractedText is empty
+      // Clear when extractedText is empty
       setJsonContent("");
-      setMarkdownContent("");
     }
   }, [extractedText]);
 
@@ -143,7 +124,6 @@ export default function Home() {
     setHasReceivedData(false);
     setExtractedText("");
     setJsonContent("");
-    setMarkdownContent("");
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -376,11 +356,11 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Markdown Section - Full Width Below - Only show after extraction is complete */}
-        {isDataExtracted && !isExtracting && markdownContent && (
+        {/* JSON Table Section - Full Width Below - Only show after extraction is complete */}
+        {isDataExtracted && !isExtracting && jsonContent && (
           <Card className="w-full max-w-7xl p-6">
-            <h2 className="text-lg font-semibold mb-4">Extracted Data Table</h2>
-            <MarkdownRenderer content={markdownContent} />
+            <h2 className="text-lg font-semibold mb-4">Structured Data View</h2>
+            <JsonTable jsonContent={jsonContent} />
           </Card>
         )}
       </>
