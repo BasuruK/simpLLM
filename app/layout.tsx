@@ -4,6 +4,7 @@ import { Link } from "@heroui/link";
 import clsx from "clsx";
 
 import { Providers } from "./providers";
+import { UpdateNotification } from "@/components/update-notification";
 
 import { siteConfig } from "@/config/site";
 import { fontSans } from "@/config/fonts";
@@ -41,6 +42,7 @@ export default function RootLayout({
         )}
       >
         <Providers themeProps={{ attribute: "class", defaultTheme: "dark" }}>
+          <UpdateNotification />
           <div className="relative flex flex-col min-h-screen">
             <main className="container mx-auto max-w-7xl px-6 flex-grow flex flex-col">
               {children}
