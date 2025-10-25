@@ -28,6 +28,7 @@ export default function Home() {
   const [jsonContent, setJsonContent] = useState("");
   const [isCopied, setIsCopied] = useState(false);
   const [hasReceivedData, setHasReceivedData] = useState(false);
+  const hasReceivedDataRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -122,6 +123,7 @@ export default function Home() {
     setIsDataExtracted(false);
     setIsExtracting(false);
     setHasReceivedData(false);
+    hasReceivedDataRef.current = false;
     setExtractedText("");
     setJsonContent("");
     if (fileInputRef.current) {
@@ -135,14 +137,16 @@ export default function Home() {
     setIsExtracting(true);
     setIsDataExtracted(true);
     setHasReceivedData(false);
+    hasReceivedDataRef.current = false;
     setExtractedText("");
     
     try {
       // Use streaming to update text in real-time
       const result = await extractDataFromFile(selectedFile, (streamedText) => {
         // Mark that we've received data (enables the editor)
-        if (!hasReceivedData && streamedText.length > 0) {
+        if (!hasReceivedDataRef.current && streamedText.length > 0) {
           setHasReceivedData(true);
+          hasReceivedDataRef.current = true;
         }
         setExtractedText(streamedText);
       });
@@ -215,13 +219,13 @@ export default function Home() {
       {selectedFile ? (
         <>
           <div className="w-full max-w-7xl flex items-center justify-center">
-            <div className={`w-full grid gap-6 transition-all duration-10000 ease-in-out ${
+            <div className={`w-full grid gap-6 transition-all duration-1000 ease-in-out ${
               isDataExtracted 
                 ? 'grid-cols-1 lg:grid-cols-2' 
                 : 'grid-cols-1 max-w-2xl'
             }`}>
             {/* File Preview Card */}
-            <Card className={`p-4 transition-all duration-10000 ease-in-out ${
+            <Card className={`p-4 transition-all duration-1000 ease-in-out ${
               isDataExtracted ? '' : 'mx-auto w-full'
             }`}>
               {fileType === 'image' && selectedImage ? (

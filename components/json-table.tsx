@@ -13,7 +13,7 @@ function NestedTable({ data, depth = 0 }: { data: any; depth?: number }) {
   
   if (Array.isArray(data)) {
     // Handle arrays of objects
-    if (data.length > 0 && typeof data[0] === 'object') {
+    if (data.length > 0 && data[0] !== null && typeof data[0] === 'object') {
       const keys = Object.keys(data[0]);
       return (
         <div className="my-2">

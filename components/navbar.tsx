@@ -39,7 +39,7 @@ export const Navbar = ({ username, onLogout }: NavbarProps) => {
         <NavbarBrand as="li" className="gap-3 max-w-fit">
           <NextLink className="flex justify-start items-center gap-2" href="/">
             <Logo />
-            <p className="font-bold text-inherit">GPT-4o Invoice Data Extrator</p>
+            <p className="font-bold text-inherit">GPT-4o Invoice Data Extractor</p>
           </NextLink>
         </NavbarBrand>
       </NavbarContent>
