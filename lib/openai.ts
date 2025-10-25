@@ -10,14 +10,6 @@ function getApiKey(): string {
   return apiKey;
 }
 
-// Initialize OpenAI client lazily
-function getOpenAIClient(): OpenAI {
-  return new OpenAI({
-    apiKey: getApiKey(),
-    dangerouslyAllowBrowser: true,
-  });
-}
-
 /**
  * Streams OpenAI-compatible API responses as newline-delimited JSON events
  * and extracts the final structured JSON output
@@ -26,6 +18,8 @@ export async function extractDataFromFile(
   file: File,
   onStream?: (text: string) => void
 ): Promise<any> {
+  let uploadedFileId: string | null = null;
+  
   try {
     // Convert File to base64 for images or PDFs
     let fileContent: string | undefined;
@@ -80,6 +74,9 @@ export async function extractDataFromFile(
 
       const uploadResult = await uploadResponse.json();
       console.log('File uploaded successfully:', uploadResult);
+
+      // Track the file ID for cleanup
+      uploadedFileId = uploadResult.id;
 
       // Use the file ID in the content
       contentItem = {
@@ -249,5 +246,28 @@ export async function extractDataFromFile(
   } catch (error) {
     console.error("Error extracting data:", error);
     throw new Error(`Failed to extract data: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  } finally {
+    // Clean up uploaded PDF file if it was created
+    if (uploadedFileId) {
+      try {
+        console.log('Deleting uploaded file:', uploadedFileId);
+        const deleteResponse = await fetch(`https://api.openai.com/v1/files/${uploadedFileId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${getApiKey()}`,
+          },
+        });
+
+        if (deleteResponse.ok) {
+          console.log('File deleted successfully:', uploadedFileId);
+        } else {
+          const errorText = await deleteResponse.text();
+          console.error('Failed to delete file:', uploadedFileId, errorText);
+        }
+      } catch (deleteError) {
+        // Log but don't throw - cleanup errors shouldn't break the main flow
+        console.error('Error during file cleanup:', deleteError);
+      }
+    }
   }
 }

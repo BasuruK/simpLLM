@@ -24,8 +24,13 @@ export function decryptApiKey(encryptedKeyBase64: string): string {
     const ciphertext = CryptoJS.enc.Base64.parse(encryptedKeyBase64);
     const iv = CryptoJS.lib.WordArray.create([0, 0, 0, 0]); // Zero IV
     
+    // Create a proper CipherParams object
+    const cipherParams = CryptoJS.lib.CipherParams.create({
+      ciphertext: ciphertext
+    });
+    
     const decrypted = CryptoJS.AES.decrypt(
-      { ciphertext: ciphertext } as any,
+      cipherParams,
       key,
       {
         iv: iv,

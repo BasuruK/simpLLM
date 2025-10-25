@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card } from "@heroui/card";
 import { Input } from "@heroui/input";
 import { Button } from "@heroui/button";
@@ -15,6 +15,16 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
   const [encryptedApiKey, setEncryptedApiKey] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,7 +57,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
       saveCredentials(username, encryptedApiKey);
       
       // Small delay for better UX
-      setTimeout(() => {
+      timeoutRef.current = setTimeout(() => {
         setIsLoading(false);
         onLogin();
       }, 500);
