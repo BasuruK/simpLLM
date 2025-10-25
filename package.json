@@ -1,6 +1,8 @@
 {
   "name": "simpllm",
   "version": "0.0.1",
+  "description": "GPT-4o Invoice Data Extractor - Extract structured data from invoices and documents",
+  "author": "Basuru Balsuriya <www.basururoxyouall@gmail.com>",
   "private": true,
   "main": "electron/dist/main.js",
   "scripts": {
@@ -8,6 +10,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint --fix",
+    "postinstall": "cd node_modules/@img && (test -L sharp-darwin-x64 || ln -s sharp-darwin-arm64 sharp-darwin-x64) && (test -L sharp-libvips-darwin-x64 || ln -s sharp-libvips-darwin-arm64 sharp-libvips-darwin-x64) || true",
     "electron:dev": "tsc -p electron/tsconfig.json && concurrently \"npm run dev\" \"wait-on http://localhost:3000 && cross-env NODE_ENV=development electron .\"",
     "electron:start": "tsc -p electron/tsconfig.json && electron .",
     "electron:build": "npm run build && tsc -p electron/tsconfig.json && electron-builder",
@@ -71,7 +74,8 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-markdown": "^10.1.0",
-    "remark-gfm": "^4.0.1"
+    "remark-gfm": "^4.0.1",
+    "sharp": "^0.34.4"
   },
   "devDependencies": {
     "@next/eslint-plugin-next": "15.3.4",
