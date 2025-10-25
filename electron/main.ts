@@ -1,6 +1,7 @@
-import { app, BrowserWindow, shell } from 'electron';
+import { app, BrowserWindow, shell, ipcMain } from 'electron';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
+import { setupAutoUpdater, checkForUpdates, downloadUpdate, quitAndInstall } from './auto-updater';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -52,6 +53,22 @@ function createWindow() {
 
 app.whenReady().then(() => {
   createWindow();
+
+  // Setup IPC handlers for auto-updater
+  ipcMain.handle('check-for-updates', () => {
+    checkForUpdates();
+  });
+
+  ipcMain.handle('download-update', () => {
+    downloadUpdate();
+  });
+
+  ipcMain.handle('install-update', () => {
+    quitAndInstall();
+  });
+
+  // Initialize auto-updater
+  setupAutoUpdater(mainWindow);
 
   app.on('activate', () => {
     // On macOS, re-create window when dock icon is clicked
