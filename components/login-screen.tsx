@@ -49,7 +49,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
       
       if (!validation.success) {
         setIsLoading(false);
-        setError(`Invalid login code: ${validation.error || 'Decryption failed'}`);
+        setError("Invalid Login code. Please contact the owner and request a new login code.");
         return;
       }
       
