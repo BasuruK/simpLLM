@@ -1,9 +1,12 @@
 import { app, BrowserWindow, shell, ipcMain } from 'electron';
 import * as path from 'path';
-import { fileURLToPath } from 'url';
+import serve from 'electron-serve';
 import { setupAutoUpdater, checkForUpdates, downloadUpdate, quitAndInstall } from './auto-updater';
 
 let mainWindow: BrowserWindow | null = null;
+
+// Setup electron-serve to serve the out directory
+const loadURL = serve({ directory: 'out' });
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -15,20 +18,21 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
       contextIsolation: true,
-      sandbox: true,
     },
     backgroundColor: '#000000',
     show: false,
   });
 
   // In development, load from Next.js dev server
-  // In production, load from static export
+  // In production, use electron-serve
   const isDev = process.env.NODE_ENV === 'development';
-  const url = isDev
-    ? 'http://localhost:3000'
-    : `file://${path.join(__dirname, '../out/index.html')}`;
-
-  mainWindow.loadURL(url);
+  
+  if (isDev) {
+    mainWindow.loadURL('http://localhost:3000');
+  } else {
+    // electron-serve will handle all the path resolution
+    loadURL(mainWindow);
+  }
 
   // Show window when ready to prevent flickering
   mainWindow.once('ready-to-show', () => {
