@@ -11,9 +11,19 @@ export function setupAutoUpdater(mainWindow: BrowserWindow | null) {
   // Set update check interval (check every 5 minutes)
   const CHECK_INTERVAL = 5 * 60 * 1000;
   
-  // Configure auto-updater
+  // Configure auto-updater for private repository
   autoUpdater.autoDownload = false; // Don't auto-download, wait for user confirmation
   autoUpdater.autoInstallOnAppQuit = true;
+  
+  // For private GitHub repos, set the token
+  // The token should be embedded during build or fetched securely
+  autoUpdater.setFeedURL({
+    provider: 'github',
+    owner: 'BasuruK',
+    repo: 'simpLLM',
+    private: true,
+    token: process.env.GH_TOKEN || '', // Token will be set at build time
+  });
 
   // Event: Checking for update
   autoUpdater.on('checking-for-update', () => {
