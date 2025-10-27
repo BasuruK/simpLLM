@@ -1,15 +1,22 @@
-import { app, BrowserWindow, shell, ipcMain, Menu } from 'electron';
-import * as path from 'path';
-import serve from 'electron-serve';
-import { setupAutoUpdater, checkForUpdates, downloadUpdate, quitAndInstall } from './auto-updater';
+import * as path from "path";
+
+import { app, BrowserWindow, shell, ipcMain, Menu } from "electron";
+import serve from "electron-serve";
+
+import {
+  setupAutoUpdater,
+  checkForUpdates,
+  downloadUpdate,
+  quitAndInstall,
+} from "./auto-updater";
 
 let mainWindow: BrowserWindow | null = null;
 
 // Setup electron-serve to serve the out directory
-const loadURL = serve({ directory: 'out' });
+const loadURL = serve({ directory: "out" });
 
 // Check if running in development mode
-const isDev = process.env.NODE_ENV === 'development';
+const isDev = process.env.NODE_ENV === "development";
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -18,12 +25,12 @@ function createWindow() {
     minWidth: 800,
     minHeight: 600,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: path.join(__dirname, "preload.js"),
       nodeIntegration: false,
       contextIsolation: true,
       devTools: isDev, // Only enable DevTools in development
     },
-    backgroundColor: '#000000',
+    backgroundColor: "#000000",
     show: false,
   });
 
@@ -35,7 +42,7 @@ function createWindow() {
   // In development, load from Next.js dev server
   // In production, use electron-serve
   if (isDev) {
-    mainWindow.loadURL('http://localhost:3000');
+    mainWindow.loadURL("http://localhost:3000");
     // Open DevTools in development
     mainWindow.webContents.openDevTools();
   } else {
@@ -44,17 +51,18 @@ function createWindow() {
   }
 
   // Show window when ready to prevent flickering
-  mainWindow.once('ready-to-show', () => {
+  mainWindow.once("ready-to-show", () => {
     mainWindow?.show();
   });
 
   // Open external links in browser
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);
-    return { action: 'deny' };
+
+    return { action: "deny" };
   });
 
-  mainWindow.on('closed', () => {
+  mainWindow.on("closed", () => {
     mainWindow = null;
   });
 }
@@ -63,15 +71,15 @@ app.whenReady().then(() => {
   createWindow();
 
   // Setup IPC handlers for auto-updater
-  ipcMain.handle('check-for-updates', () => {
+  ipcMain.handle("check-for-updates", () => {
     checkForUpdates();
   });
 
-  ipcMain.handle('download-update', () => {
+  ipcMain.handle("download-update", () => {
     downloadUpdate();
   });
 
-  ipcMain.handle('install-update', () => {
+  ipcMain.handle("install-update", () => {
     quitAndInstall();
   });
 
@@ -80,7 +88,7 @@ app.whenReady().then(() => {
     setupAutoUpdater(mainWindow);
   }
 
-  app.on('activate', () => {
+  app.on("activate", () => {
     // On macOS, re-create window when dock icon is clicked
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
@@ -89,25 +97,25 @@ app.whenReady().then(() => {
 });
 
 // Quit when all windows are closed (except on macOS)
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
+app.on("window-all-closed", () => {
+  if (process.platform !== "darwin") {
     app.quit();
   }
 });
 
 // Security: Prevent navigation to external URLs
-app.on('web-contents-created', (_event, contents) => {
-  contents.on('will-navigate', (event, navigationUrl) => {
+app.on("web-contents-created", (_event, contents) => {
+  contents.on("will-navigate", (event, navigationUrl) => {
     const parsedUrl = new URL(navigationUrl);
-    
-    if (isDev && parsedUrl.origin === 'http://localhost:3000') {
+
+    if (isDev && parsedUrl.origin === "http://localhost:3000") {
       return;
     }
-    
-    if (parsedUrl.protocol === 'file:') {
+
+    if (parsedUrl.protocol === "file:") {
       return;
     }
-    
+
     event.preventDefault();
   });
 });

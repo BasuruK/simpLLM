@@ -75,40 +75,40 @@ export const UploadIcon: React.FC<IconSvgProps> = ({
   ...props
 }) => (
   <svg
-    height={size || height}
-    width={size || width}
-    viewBox="0 0 24 24"
     fill="none"
+    height={size || height}
+    viewBox="0 0 24 24"
+    width={size || width}
     xmlns="http://www.w3.org/2000/svg"
     {...props}
   >
     <path
       d="M9 17V11L7 13"
       stroke="currentColor"
-      strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
+      strokeWidth="2"
     />
     <path
       d="M9 11L11 13"
       stroke="currentColor"
-      strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
+      strokeWidth="2"
     />
     <path
       d="M22 10V15C22 20 20 22 15 22H9C4 22 2 20 2 15V9C2 4 4 2 9 2H14"
       stroke="currentColor"
-      strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
+      strokeWidth="2"
     />
     <path
       d="M22 10H18C15 10 14 9 14 6V2L22 10Z"
       stroke="currentColor"
-      strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
+      strokeWidth="2"
     />
   </svg>
 );
@@ -120,26 +120,26 @@ export const CopyIcon: React.FC<IconSvgProps> = ({
   ...props
 }) => (
   <svg
-    height={size || height}
-    width={size || width}
-    viewBox="0 0 24 24"
     fill="none"
+    height={size || height}
+    viewBox="0 0 24 24"
+    width={size || width}
     xmlns="http://www.w3.org/2000/svg"
     {...props}
   >
     <path
       d="M16 12.9V17.1C16 20.6 14.6 22 11.1 22H6.9C3.4 22 2 20.6 2 17.1V12.9C2 9.4 3.4 8 6.9 8H11.1C14.6 8 16 9.4 16 12.9Z"
       stroke="currentColor"
-      strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
+      strokeWidth="1.5"
     />
     <path
       d="M22 6.9V11.1C22 14.6 20.6 16 17.1 16H16V12.9C16 9.4 14.6 8 11.1 8H8V6.9C8 3.4 9.4 2 12.9 2H17.1C20.6 2 22 3.4 22 6.9Z"
       stroke="currentColor"
-      strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
+      strokeWidth="1.5"
     />
   </svg>
 );
@@ -151,47 +151,47 @@ export const TrashIcon: React.FC<IconSvgProps> = ({
   ...props
 }) => (
   <svg
-    height={size || height}
-    width={size || width}
-    viewBox="0 0 24 24"
     fill="none"
+    height={size || height}
+    viewBox="0 0 24 24"
+    width={size || width}
     xmlns="http://www.w3.org/2000/svg"
     {...props}
   >
     <path
       d="M21 5.98C17.67 5.65 14.32 5.48 10.98 5.48C9 5.48 7.02 5.58 5.04 5.78L3 5.98"
       stroke="currentColor"
-      strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
+      strokeWidth="1.5"
     />
     <path
       d="M8.5 4.97L8.72 3.66C8.88 2.71 9 2 10.69 2H13.31C15 2 15.13 2.75 15.28 3.67L15.5 4.97"
       stroke="currentColor"
-      strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
+      strokeWidth="1.5"
     />
     <path
       d="M18.85 9.14L18.2 19.21C18.09 20.78 18 22 15.21 22H8.79C6 22 5.91 20.78 5.8 19.21L5.15 9.14"
       stroke="currentColor"
-      strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
+      strokeWidth="1.5"
     />
     <path
       d="M10.33 16.5H13.66"
       stroke="currentColor"
-      strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
+      strokeWidth="1.5"
     />
     <path
       d="M9.5 12.5H14.5"
       stroke="currentColor"
-      strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
+      strokeWidth="1.5"
     />
   </svg>
 );
@@ -203,10 +203,10 @@ export const SparklesIcon: React.FC<IconSvgProps> = ({
   ...props
 }) => (
   <svg
-    height={size || height}
-    width={size || width}
-    viewBox="0 0 24 24"
     fill="none"
+    height={size || height}
+    viewBox="0 0 24 24"
+    width={size || width}
     xmlns="http://www.w3.org/2000/svg"
     {...props}
   >
@@ -241,34 +241,33 @@ export const LogoutIcon: React.FC<IconSvgProps> = ({
   ...props
 }) => (
   <svg
-    height={size || height}
-    width={size || width}
-    viewBox="0 0 24 24"
     fill="none"
+    height={size || height}
+    viewBox="0 0 24 24"
+    width={size || width}
     xmlns="http://www.w3.org/2000/svg"
     {...props}
   >
     <path
       d="M8.90002 7.55999C9.21002 3.95999 11.06 2.48999 15.11 2.48999H15.24C19.71 2.48999 21.5 4.27999 21.5 8.74999V15.27C21.5 19.74 19.71 21.53 15.24 21.53H15.11C11.09 21.53 9.24002 20.08 8.91002 16.54"
       stroke="currentColor"
-      strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
+      strokeWidth="1.5"
     />
     <path
       d="M15 12H3.62"
       stroke="currentColor"
-      strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
+      strokeWidth="1.5"
     />
     <path
       d="M5.85 8.6499L2.5 11.9999L5.85 15.3499"
       stroke="currentColor"
-      strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
+      strokeWidth="1.5"
     />
   </svg>
 );
-
