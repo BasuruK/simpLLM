@@ -1,6 +1,6 @@
 {
   "name": "simpllm",
-  "version": "0.0.2",
+  "version": "0.0.1",
   "description": "GPT-4o Invoice Data Extractor - Extract structured data from invoices and documents",
   "author": "Basuru Balsuriya <www.basururoxyouall@gmail.com>",
   "private": true,
