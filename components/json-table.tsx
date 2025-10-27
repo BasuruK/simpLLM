@@ -1,6 +1,13 @@
 "use client";
 
-import { Table, TableHeader, TableColumn, TableBody, TableRow, TableCell } from "@heroui/table";
+import {
+  Table,
+  TableHeader,
+  TableColumn,
+  TableBody,
+  TableRow,
+  TableCell,
+} from "@heroui/table";
 
 interface JsonTableProps {
   jsonContent: string;
@@ -10,28 +17,29 @@ interface JsonTableProps {
 function NestedTable({ data, depth = 0 }: { data: any; depth?: number }) {
   // Limit recursion depth to prevent infinite loops
   const maxDepth = 3;
-  
+
   if (Array.isArray(data)) {
     // Handle arrays of objects
-    if (data.length > 0 && data[0] !== null && typeof data[0] === 'object') {
+    if (data.length > 0 && data[0] !== null && typeof data[0] === "object") {
       const keys = Object.keys(data[0]);
+
       return (
         <div className="my-2">
-          <Table 
-            isStriped 
+          <Table
+            isStriped
             removeWrapper
-            color="default"
             aria-label="Nested data"
             classNames={{
               base: "text-xs",
               th: "text-xs py-1 px-2",
               td: "text-xs py-1 px-2",
             }}
+            color="default"
           >
             <TableHeader>
               {keys.map((key) => (
                 <TableColumn key={key}>
-                  {key.replace(/_/g, ' ').toUpperCase()}
+                  {key.replace(/_/g, " ").toUpperCase()}
                 </TableColumn>
               ))}
             </TableHeader>
@@ -40,9 +48,13 @@ function NestedTable({ data, depth = 0 }: { data: any; depth?: number }) {
                 <TableRow key={idx}>
                   {keys.map((key) => (
                     <TableCell key={`${idx}-${key}`} className="align-top">
-                      {typeof item[key] === 'object' && item[key] !== null && depth < maxDepth
-                        ? <NestedTable data={item[key]} depth={depth + 1} />
-                        : String(item[key] ?? '')}
+                      {typeof item[key] === "object" &&
+                      item[key] !== null &&
+                      depth < maxDepth ? (
+                        <NestedTable data={item[key]} depth={depth + 1} />
+                      ) : (
+                        String(item[key] ?? "")
+                      )}
                     </TableCell>
                   ))}
                 </TableRow>
@@ -63,20 +75,20 @@ function NestedTable({ data, depth = 0 }: { data: any; depth?: number }) {
         </div>
       );
     }
-  } else if (typeof data === 'object' && data !== null) {
+  } else if (typeof data === "object" && data !== null) {
     // Handle nested objects - render as striped mini table
     return (
       <div className="my-2">
-        <Table 
-          isStriped 
+        <Table
+          isStriped
           removeWrapper
-          color="default"
           aria-label="Nested object"
           classNames={{
             base: "text-xs",
             th: "text-xs py-1 px-2",
             td: "text-xs py-1 px-2",
           }}
+          color="default"
         >
           <TableHeader>
             <TableColumn>FIELD</TableColumn>
@@ -86,12 +98,16 @@ function NestedTable({ data, depth = 0 }: { data: any; depth?: number }) {
             {Object.entries(data).map(([key, value]) => (
               <TableRow key={key}>
                 <TableCell className="font-semibold align-top">
-                  {key.replace(/_/g, ' ')}
+                  {key.replace(/_/g, " ")}
                 </TableCell>
                 <TableCell className="align-top">
-                  {typeof value === 'object' && value !== null && depth < maxDepth
-                    ? <NestedTable data={value} depth={depth + 1} />
-                    : String(value ?? '')}
+                  {typeof value === "object" &&
+                  value !== null &&
+                  depth < maxDepth ? (
+                    <NestedTable data={value} depth={depth + 1} />
+                  ) : (
+                    String(value ?? "")
+                  )}
                 </TableCell>
               </TableRow>
             ))}
@@ -100,7 +116,7 @@ function NestedTable({ data, depth = 0 }: { data: any; depth?: number }) {
       </div>
     );
   }
-  
+
   return <span>{String(data)}</span>;
 }
 
@@ -109,21 +125,26 @@ export function JsonTable({ jsonContent }: JsonTableProps) {
   const parseJsonData = () => {
     try {
       const data = JSON.parse(jsonContent);
-      
+
       // Convert the JSON object into table rows
-      const rows: { key: string; field: string; value: any; isNested: boolean }[] = [];
-      
-      const flattenObject = (obj: any, prefix = '') => {
+      const rows: {
+        key: string;
+        field: string;
+        value: any;
+        isNested: boolean;
+      }[] = [];
+
+      const flattenObject = (obj: any, prefix = "") => {
         Object.entries(obj).forEach(([key, value]) => {
           const fullKey = prefix ? `${prefix}.${key}` : key;
-          
-          if (value && typeof value === 'object' && !Array.isArray(value)) {
+
+          if (value && typeof value === "object" && !Array.isArray(value)) {
             // Don't flatten nested objects - show them as nested tables instead
             rows.push({
               key: fullKey,
               field: key,
               value: value,
-              isNested: true
+              isNested: true,
             });
           } else if (Array.isArray(value)) {
             // Handle arrays - show as nested tables
@@ -131,24 +152,26 @@ export function JsonTable({ jsonContent }: JsonTableProps) {
               key: fullKey,
               field: key,
               value: value,
-              isNested: true
+              isNested: true,
             });
           } else {
             // Handle primitive values
             rows.push({
               key: fullKey,
               field: key,
-              value: String(value ?? ''),
-              isNested: false
+              value: String(value ?? ""),
+              isNested: false,
             });
           }
         });
       };
-      
+
       flattenObject(data);
+
       return rows;
     } catch (error) {
       console.error("Failed to parse JSON:", error);
+
       return [];
     }
   };
@@ -164,15 +187,15 @@ export function JsonTable({ jsonContent }: JsonTableProps) {
   }
 
   return (
-    <Table 
+    <Table
       isStriped
-      color="default"
       aria-label="Extracted data table"
       classNames={{
         wrapper: "bg-transparent",
         th: "text-sm",
         td: "",
       }}
+      color="default"
     >
       <TableHeader>
         <TableColumn>FIELD</TableColumn>
@@ -181,7 +204,9 @@ export function JsonTable({ jsonContent }: JsonTableProps) {
       <TableBody>
         {rows.map((row, index) => (
           <TableRow key={`${row.key}-${index}`}>
-            <TableCell className="font-medium align-top w-1/4">{row.field}</TableCell>
+            <TableCell className="font-medium align-top w-1/4">
+              {row.field}
+            </TableCell>
             <TableCell className="align-top">
               {row.isNested ? (
                 <NestedTable data={row.value} />
