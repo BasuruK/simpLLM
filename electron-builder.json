@@ -9,11 +9,13 @@
     "out/**/*",
     "electron/dist/**/*",
     "package.json",
-    "!node_modules/@img/sharp-darwin-x64${/*}"
+    "node_modules/**/*",
+    "!node_modules/@img/sharp-darwin*/**",
+    "!node_modules/@img/*darwin*/**",
+    "!node_modules/@img/sharp-linux*/**",
+    "!node_modules/@img/*linux*/**"
   ],
-  "asarUnpack": [
-    "node_modules/@img/**/*"
-  ],
+  "asarUnpack": [],
   "publish": {
     "provider": "github",
     "owner": "BasuruK",
@@ -32,7 +34,8 @@
       }
     ],
     "icon": "build/icon.ico",
-    "artifactName": "${productName}-${version}-${arch}.${ext}"
+    "artifactName": "${productName}-${version}-${arch}.${ext}",
+    "signAndEditExecutable": false
   },
   "mac": {
     "target": ["dmg", "zip"],

@@ -54,8 +54,6 @@ export async function extractDataFromFile(
       const formData = new FormData();
       formData.append('file', correctedFile);
       formData.append('purpose', 'assistants');
-
-      console.log('Uploading PDF file to OpenAI...', { originalName: file.name, correctedName: fileName });
       
       // Upload the file first
       const uploadResponse = await fetch('https://api.openai.com/v1/files', {
@@ -68,12 +66,10 @@ export async function extractDataFromFile(
 
       if (!uploadResponse.ok) {
         const errorText = await uploadResponse.text();
-        console.error('File upload failed:', errorText);
         throw new Error(`File upload failed: ${uploadResponse.status} - ${errorText}`);
       }
 
       const uploadResult = await uploadResponse.json();
-      console.log('File uploaded successfully:', uploadResult);
 
       // Track the file ID for cleanup
       uploadedFileId = uploadResult.id;
@@ -102,14 +98,6 @@ export async function extractDataFromFile(
       ]
     };
 
-    console.log('Request details:', {
-      contentItemType: contentItem.type,
-      fileType: file.type,
-      fileName: file.name,
-      fileSize: file.size,
-      base64Length: fileContent?.length,
-    });
-
     const response = await fetch('https://api.openai.com/v1/responses', {
       method: 'POST',
       headers: {
@@ -125,7 +113,6 @@ export async function extractDataFromFile(
       try {
         const errorBody = await response.text();
         errorDetails = errorBody;
-        console.error('API Error Response:', errorBody);
       } catch (e) {
         // Ignore if we can't read the error body
       }
@@ -196,7 +183,7 @@ export async function extractDataFromFile(
             }
 
           } catch (parseError) {
-            console.warn('Failed to parse event line:', trimmedLine, parseError);
+            // Skip unparseable lines silently
             // Continue processing other events
           }
         }
@@ -244,13 +231,11 @@ export async function extractDataFromFile(
     }
 
   } catch (error) {
-    console.error("Error extracting data:", error);
     throw new Error(`Failed to extract data: ${error instanceof Error ? error.message : 'Unknown error'}`);
   } finally {
     // Clean up uploaded PDF file if it was created
     if (uploadedFileId) {
       try {
-        console.log('Deleting uploaded file:', uploadedFileId);
         const deleteResponse = await fetch(`https://api.openai.com/v1/files/${uploadedFileId}`, {
           method: 'DELETE',
           headers: {
@@ -258,15 +243,11 @@ export async function extractDataFromFile(
           },
         });
 
-        if (deleteResponse.ok) {
-          console.log('File deleted successfully:', uploadedFileId);
-        } else {
-          const errorText = await deleteResponse.text();
-          console.error('Failed to delete file:', uploadedFileId, errorText);
+        if (!deleteResponse.ok) {
+          // Silently fail - cleanup errors shouldn't break the main flow
         }
       } catch (deleteError) {
-        // Log but don't throw - cleanup errors shouldn't break the main flow
-        console.error('Error during file cleanup:', deleteError);
+        // Silently fail - cleanup errors shouldn't break the main flow
       }
     }
   }
