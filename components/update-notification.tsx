@@ -1,6 +1,12 @@
 "use client";
 
-import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from "@heroui/modal";
+import {
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+} from "@heroui/modal";
 import { Button } from "@heroui/button";
 import { Progress } from "@heroui/progress";
 import { useEffect, useState } from "react";
@@ -23,13 +29,14 @@ export function UpdateNotification() {
   const [isOpen, setIsOpen] = useState(false);
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
-  const [downloadProgress, setDownloadProgress] = useState<DownloadProgress | null>(null);
+  const [downloadProgress, setDownloadProgress] =
+    useState<DownloadProgress | null>(null);
   const [isReadyToInstall, setIsReadyToInstall] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     // Check if we're in Electron environment
-    if (typeof window === 'undefined' || !window.electron?.updater) {
+    if (typeof window === "undefined" || !window.electron?.updater) {
       return;
     }
 
@@ -83,27 +90,29 @@ export function UpdateNotification() {
   };
 
   const formatBytes = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
+    if (bytes === 0) return "0 Bytes";
     const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const sizes = ["Bytes", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+
+    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
   };
 
   const formatSpeed = (bytesPerSecond: number) => {
-    return formatBytes(bytesPerSecond) + '/s';
+    return formatBytes(bytesPerSecond) + "/s";
   };
 
   return (
-    <Modal 
-      isOpen={isOpen} 
-      isDismissable={false}
-      hideCloseButton={true}
+    <Modal
       backdrop="blur"
-      size="lg"
       classNames={{
-        backdrop: "bg-gradient-to-t from-zinc-900 to-zinc-900/10 backdrop-opacity-20"
+        backdrop:
+          "bg-gradient-to-t from-zinc-900 to-zinc-900/10 backdrop-opacity-20",
       }}
+      hideCloseButton={true}
+      isDismissable={false}
+      isOpen={isOpen}
+      size="lg"
     >
       <ModalContent>
         <ModalHeader className="flex flex-col gap-1">
@@ -116,10 +125,10 @@ export function UpdateNotification() {
               xmlns="http://www.w3.org/2000/svg"
             >
               <path
+                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth={2}
-                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
               />
             </svg>
             <span>Update Available</span>
@@ -151,19 +160,18 @@ export function UpdateNotification() {
               {isDownloading && downloadProgress && (
                 <div className="space-y-2">
                   <Progress
-                    size="sm"
-                    value={downloadProgress.percent}
+                    className="max-w-full"
                     color="primary"
                     showValueLabel={true}
-                    className="max-w-full"
+                    size="sm"
+                    value={downloadProgress.percent}
                   />
                   <div className="flex justify-between text-xs text-default-500">
                     <span>
-                      {formatBytes(downloadProgress.transferred)} / {formatBytes(downloadProgress.total)}
+                      {formatBytes(downloadProgress.transferred)} /{" "}
+                      {formatBytes(downloadProgress.total)}
                     </span>
-                    <span>
-                      {formatSpeed(downloadProgress.bytesPerSecond)}
-                    </span>
+                    <span>{formatSpeed(downloadProgress.bytesPerSecond)}</span>
                   </div>
                 </div>
               )}
@@ -178,7 +186,8 @@ export function UpdateNotification() {
 
               <div className="p-3 bg-warning-50 dark:bg-warning-900/20 rounded-lg">
                 <p className="text-xs text-warning-700 dark:text-warning-500">
-                  ⚠️ The application will restart to complete the update installation.
+                  ⚠️ The application will restart to complete the update
+                  installation.
                 </p>
               </div>
             </div>
@@ -187,22 +196,22 @@ export function UpdateNotification() {
         <ModalFooter>
           {!isDownloading && !isReadyToInstall && (
             <Button
+              className="w-full"
               color="primary"
               size="lg"
-              className="w-full"
               onClick={handleDownload}
             >
               Download Update
             </Button>
           )}
-          
+
           {isDownloading && (
             <Button
-              color="primary"
-              size="lg"
               className="w-full"
-              isLoading={true}
+              color="primary"
               disabled={true}
+              isLoading={true}
+              size="lg"
             >
               Downloading...
             </Button>
@@ -210,9 +219,9 @@ export function UpdateNotification() {
 
           {isReadyToInstall && (
             <Button
+              className="w-full"
               color="success"
               size="lg"
-              className="w-full"
               onClick={handleInstall}
             >
               Install and Restart
