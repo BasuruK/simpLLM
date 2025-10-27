@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell, ipcMain } from 'electron';
+import { app, BrowserWindow, shell, ipcMain, Menu } from 'electron';
 import * as path from 'path';
 import serve from 'electron-serve';
 import { setupAutoUpdater, checkForUpdates, downloadUpdate, quitAndInstall } from './auto-updater';
@@ -7,6 +7,9 @@ let mainWindow: BrowserWindow | null = null;
 
 // Setup electron-serve to serve the out directory
 const loadURL = serve({ directory: 'out' });
+
+// Check if running in development mode
+const isDev = process.env.NODE_ENV === 'development';
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -18,17 +21,23 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
       contextIsolation: true,
+      devTools: isDev, // Only enable DevTools in development
     },
     backgroundColor: '#000000',
     show: false,
   });
 
+  // Remove menu bar in production
+  if (!isDev) {
+    Menu.setApplicationMenu(null);
+  }
+
   // In development, load from Next.js dev server
   // In production, use electron-serve
-  const isDev = process.env.NODE_ENV === 'development';
-  
   if (isDev) {
     mainWindow.loadURL('http://localhost:3000');
+    // Open DevTools in development
+    mainWindow.webContents.openDevTools();
   } else {
     // electron-serve will handle all the path resolution
     loadURL(mainWindow);
@@ -44,11 +53,6 @@ function createWindow() {
     shell.openExternal(url);
     return { action: 'deny' };
   });
-
-  // Open DevTools in development
-  if (isDev) {
-    mainWindow.webContents.openDevTools();
-  }
 
   mainWindow.on('closed', () => {
     mainWindow = null;
@@ -71,8 +75,10 @@ app.whenReady().then(() => {
     quitAndInstall();
   });
 
-  // Initialize auto-updater
-  setupAutoUpdater(mainWindow);
+  // Initialize auto-updater in production only
+  if (!isDev) {
+    setupAutoUpdater(mainWindow);
+  }
 
   app.on('activate', () => {
     // On macOS, re-create window when dock icon is clicked
@@ -93,7 +99,6 @@ app.on('window-all-closed', () => {
 app.on('web-contents-created', (_event, contents) => {
   contents.on('will-navigate', (event, navigationUrl) => {
     const parsedUrl = new URL(navigationUrl);
-    const isDev = process.env.NODE_ENV === 'development';
     
     if (isDev && parsedUrl.origin === 'http://localhost:3000') {
       return;

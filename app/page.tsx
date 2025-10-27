@@ -12,7 +12,7 @@ import { CodeEditor } from "@/components/code-editor";
 import { JsonTable } from "@/components/json-table";
 import { LoginScreen } from "@/components/login-screen";
 import { Navbar } from "@/components/navbar";
-import { isAuthenticated, loadCredentials, getUsername, clearCredentials } from "@/lib/secure-storage";
+import { isAuthenticated, getUsername, clearCredentials } from "@/lib/secure-storage";
 
 export default function Home() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -170,9 +170,7 @@ export default function Home() {
         setHasReceivedData(true);
       }
       
-      console.log("Data extracted successfully:", result);
     } catch (error) {
-      console.error("Error extracting data:", error);
       setExtractedText(`Error: ${error instanceof Error ? error.message : 'Failed to extract data'}`);
       setHasReceivedData(true);
     } finally {
@@ -188,7 +186,7 @@ export default function Home() {
       setIsCopied(true);
       setTimeout(() => setIsCopied(false), 2000); // Reset after 2 seconds
     } catch (error) {
-      console.error("Failed to copy text:", error);
+      // Silently fail - clipboard errors are not critical
     }
   };
 
