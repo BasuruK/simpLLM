@@ -4,8 +4,8 @@ import { Link } from "@heroui/link";
 import clsx from "clsx";
 
 import { Providers } from "./providers";
-import { UpdateNotification } from "@/components/update-notification";
 
+import { UpdateNotification } from "@/components/update-notification";
 import { siteConfig } from "@/config/site";
 import { fontSans } from "@/config/fonts";
 

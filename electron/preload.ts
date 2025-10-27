@@ -1,8 +1,8 @@
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer } from "electron";
 
 // Expose protected methods that allow the renderer process to use
 // ipcRenderer without exposing the entire object
-contextBridge.exposeInMainWorld('electron', {
+contextBridge.exposeInMainWorld("electron", {
   // Add your IPC handlers here
   platform: process.platform,
   versions: {
@@ -10,29 +10,31 @@ contextBridge.exposeInMainWorld('electron', {
     chrome: process.versions.chrome,
     electron: process.versions.electron,
   },
-  
+
   // Auto-updater API
   updater: {
-    checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
-    downloadUpdate: () => ipcRenderer.invoke('download-update'),
-    installUpdate: () => ipcRenderer.invoke('install-update'),
+    checkForUpdates: () => ipcRenderer.invoke("check-for-updates"),
+    downloadUpdate: () => ipcRenderer.invoke("download-update"),
+    installUpdate: () => ipcRenderer.invoke("install-update"),
     onUpdateAvailable: (callback: (info: any) => void) => {
-      ipcRenderer.on('update-available', (_event, info) => callback(info));
+      ipcRenderer.on("update-available", (_event, info) => callback(info));
     },
     onDownloadProgress: (callback: (progress: any) => void) => {
-      ipcRenderer.on('download-progress', (_event, progress) => callback(progress));
+      ipcRenderer.on("download-progress", (_event, progress) =>
+        callback(progress),
+      );
     },
     onUpdateDownloaded: (callback: (info: any) => void) => {
-      ipcRenderer.on('update-downloaded', (_event, info) => callback(info));
+      ipcRenderer.on("update-downloaded", (_event, info) => callback(info));
     },
     onUpdateError: (callback: (error: any) => void) => {
-      ipcRenderer.on('update-error', (_event, error) => callback(error));
+      ipcRenderer.on("update-error", (_event, error) => callback(error));
     },
     removeAllListeners: () => {
-      ipcRenderer.removeAllListeners('update-available');
-      ipcRenderer.removeAllListeners('download-progress');
-      ipcRenderer.removeAllListeners('update-downloaded');
-      ipcRenderer.removeAllListeners('update-error');
+      ipcRenderer.removeAllListeners("update-available");
+      ipcRenderer.removeAllListeners("download-progress");
+      ipcRenderer.removeAllListeners("update-downloaded");
+      ipcRenderer.removeAllListeners("update-error");
     },
   },
 });
