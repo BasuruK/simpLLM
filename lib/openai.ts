@@ -140,12 +140,35 @@ export async function extractDataFromFile(
     let buffer = "";
     let streamedText = "";
     let finalResult: any = null;
+    
+    // Batching variables for smoother streaming
+    let pendingUpdate = false;
+    let updateScheduled = false;
+    const BATCH_DELAY_MS = 20; // Update UI every 20ms for smooth streaming
+
+    const flushUpdate = () => {
+      if (onStream && pendingUpdate) {
+        onStream(streamedText);
+        pendingUpdate = false;
+      }
+      updateScheduled = false;
+    };
+
+    const scheduleUpdate = () => {
+      pendingUpdate = true;
+      if (!updateScheduled) {
+        updateScheduled = true;
+        setTimeout(flushUpdate, BATCH_DELAY_MS);
+      }
+    };
 
     try {
       while (true) {
         const { done, value } = await reader.read();
 
         if (done) {
+          // Flush any pending updates
+          flushUpdate();
           break;
         }
 
@@ -176,8 +199,9 @@ export async function extractDataFromFile(
             // Accumulate delta tokens for UI streaming
             if (event.type === "response.output_text.delta" && event.delta) {
               streamedText += event.delta;
+              // Schedule batched update instead of immediate update
               if (onStream) {
-                onStream(streamedText);
+                scheduleUpdate();
               }
             }
 
