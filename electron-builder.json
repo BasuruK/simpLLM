@@ -37,9 +37,7 @@
     "artifactName": "${productName}-${version}-${arch}.${ext}",
     "signAndEditExecutable": false,
     "verifyUpdateCodeSignature": false,
-    "publisherName": "Basuru Balasuriya IFS RnD Finance",
     "legalTrademarks": "IFS RnD Finance",
-    "fileAssociations": [],
     "requestedExecutionLevel": "asInvoker"
   },
   "mac": {
