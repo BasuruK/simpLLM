@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@heroui/button";
 import { Card } from "@heroui/card";
 import { Image } from "@heroui/image";
@@ -148,7 +148,7 @@ export default function Home() {
     }
   };
 
-  const handleExtractData = async () => {
+  const handleExtractData = useCallback(async () => {
     if (!selectedFile) return;
 
     setIsExtracting(true);
@@ -158,15 +158,17 @@ export default function Home() {
     setExtractedText("");
 
     try {
-      // Use streaming to update text in real-time
-      const result = await extractDataFromFile(selectedFile, (streamedText) => {
+      // Use streaming to update text in real-time with batched callback
+      const streamCallback = (streamedText: string) => {
         // Mark that we've received data (enables the editor)
         if (!hasReceivedDataRef.current && streamedText.length > 0) {
           setHasReceivedData(true);
           hasReceivedDataRef.current = true;
         }
         setExtractedText(streamedText);
-      });
+      };
+
+      const result = await extractDataFromFile(selectedFile, streamCallback);
 
       // Set the final structured result
       if (result) {
@@ -195,7 +197,7 @@ export default function Home() {
     } finally {
       setIsExtracting(false);
     }
-  };
+  }, [selectedFile]);
 
   const handleCopyText = async () => {
     if (!extractedText) return;
@@ -290,7 +292,7 @@ export default function Home() {
                             ) : undefined
                           }
                           variant="flat"
-                          onClick={handleExtractData}
+                          onPress={handleExtractData}
                         >
                           {isExtracting ? "Extracting..." : "Extract Data"}
                         </Button>
@@ -299,9 +301,9 @@ export default function Home() {
                         color="danger"
                         startContent={<TrashIcon size={18} />}
                         variant="flat"
-                        onClick={handleClearImage}
+                        onPress={handleClearImage}
                       >
-                        Clear
+                        Remove
                       </Button>
                     </div>
                   </div>
@@ -345,7 +347,7 @@ export default function Home() {
                           )
                         }
                         variant="flat"
-                        onClick={handleCopyText}
+                        onPress={handleCopyText}
                       >
                         {isCopied ? "Copied!" : "Copy"}
                       </Button>
