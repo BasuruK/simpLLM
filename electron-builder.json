@@ -35,7 +35,12 @@
     ],
     "icon": "build/icon.ico",
     "artifactName": "${productName}-${version}-${arch}.${ext}",
-    "signAndEditExecutable": false
+    "signAndEditExecutable": false,
+    "verifyUpdateCodeSignature": false,
+    "publisherName": "Basuru Balasuriya IFS RnD Finance",
+    "legalTrademarks": "IFS RnD Finance",
+    "fileAssociations": [],
+    "requestedExecutionLevel": "asInvoker"
   },
   "mac": {
     "target": ["dmg", "zip"],
@@ -52,9 +57,16 @@
     "category": "Utility"
   },
   "nsis": {
-    "oneClick": false,
-    "allowToChangeInstallationDirectory": true,
+    "oneClick": true,
+    "perMachine": false,
+    "allowElevation": false,
+    "allowToChangeInstallationDirectory": false,
     "createDesktopShortcut": true,
-    "createStartMenuShortcut": true
+    "createStartMenuShortcut": true,
+    "deleteAppDataOnUninstall": true,
+    "runAfterFinish": true,
+    "installerIcon": "build/icon.ico",
+    "uninstallerIcon": "build/icon.ico",
+    "installerHeaderIcon": "build/icon.ico"
   }
 }
