@@ -1,6 +1,6 @@
 {
   "appId": "com.simpllm.app",
-  "productName": "simpLLM",
+  "productName": "Simple Invoice Scanner",
   "directories": {
     "output": "dist",
     "buildResources": "build"
@@ -22,6 +22,7 @@
     "repo": "simpLLM",
     "private": true,
     "timeout": 600000,
+    "publishAutoUpdate": true,
     "requestHeaders": {
       "Accept": "application/vnd.github.v3+json"
     }
@@ -34,7 +35,7 @@
       }
     ],
     "icon": "build/icon.ico",
-    "artifactName": "${productName}-${version}-${arch}.${ext}",
+    "artifactName": "${productName}_${version}.${ext}",
     "signAndEditExecutable": false,
     "verifyUpdateCodeSignature": false,
     "legalTrademarks": "IFS RnD Finance",
@@ -66,5 +67,6 @@
     "installerIcon": "build/icon.ico",
     "uninstallerIcon": "build/icon.ico",
     "installerHeaderIcon": "build/icon.ico"
-  }
+  },
+  "afterAllArtifactBuild": "./scripts/post-build.js"
 }
