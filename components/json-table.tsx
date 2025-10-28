@@ -91,8 +91,8 @@ function NestedTable({ data, depth = 0 }: { data: any; depth?: number }) {
           color="default"
         >
           <TableHeader>
-            <TableColumn>FIELD</TableColumn>
-            <TableColumn>VALUE</TableColumn>
+            <TableColumn>INVOICE SECTION</TableColumn>
+            <TableColumn>EXTRACTION</TableColumn>
           </TableHeader>
           <TableBody>
             {Object.entries(data).map(([key, value]) => (

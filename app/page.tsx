@@ -301,7 +301,7 @@ export default function Home() {
                         variant="flat"
                         onClick={handleClearImage}
                       >
-                        Clear
+                        Remove
                       </Button>
                     </div>
                   </div>
