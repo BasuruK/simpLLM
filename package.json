@@ -28,11 +28,9 @@
     "electron:build": "npm run build && tsc -p electron/tsconfig.json && electron-builder",
     "electron:build:win": "npm run build:win && tsc -p electron/tsconfig.json && electron-builder --win",
     "electron:build:mac": "npm run build && tsc -p electron/tsconfig.json && electron-builder --mac",
-    "electron:build:linux": "npm run build && tsc -p electron/tsconfig.json && electron-builder --linux",
     "electron:publish": "npm run build && tsc -p electron/tsconfig.json && electron-builder --publish always",
     "electron:publish:win": "npm run build:win && tsc -p electron/tsconfig.json && electron-builder --win --publish always",
-    "electron:publish:mac": "npm run build && tsc -p electron/tsconfig.json && electron-builder --mac --publish always",
-    "electron:publish:linux": "npm run build && tsc -p electron/tsconfig.json && electron-builder --linux --publish always"
+    "electron:publish:mac": "npm run build && tsc -p electron/tsconfig.json && electron-builder --mac --publish always"
   },
   "dependencies": {
     "@heroui/button": "2.2.27",

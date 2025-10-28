@@ -50,11 +50,6 @@
     "entitlements": "build/entitlements.mac.plist",
     "entitlementsInherit": "build/entitlements.mac.plist"
   },
-  "linux": {
-    "target": ["AppImage", "deb"],
-    "icon": "build/icon.png",
-    "category": "Utility"
-  },
   "nsis": {
     "oneClick": true,
     "perMachine": false,
