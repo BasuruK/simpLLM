@@ -93,8 +93,7 @@ export async function extractDataFromFile(
     // Make direct fetch call to get raw streaming response
     const requestBody = {
       prompt: {
-        id: "pmpt_68f9c3199cec81949e6b6611f1eedaff0b7b1713aaa337a5",
-        version: "2",
+        id: "pmpt_68f9c3199cec81949e6b6611f1eedaff0b7b1713aaa337a5"
       },
       stream: true,
       input: [
