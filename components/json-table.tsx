@@ -91,8 +91,8 @@ function NestedTable({ data, depth = 0 }: { data: any; depth?: number }) {
           color="default"
         >
           <TableHeader>
-            <TableColumn>INVOICE SECTION</TableColumn>
-            <TableColumn>EXTRACTION</TableColumn>
+            <TableColumn>SECTION</TableColumn>
+            <TableColumn>DATA</TableColumn>
           </TableHeader>
           <TableBody>
             {Object.entries(data).map(([key, value]) => (
@@ -198,8 +198,8 @@ export function JsonTable({ jsonContent }: JsonTableProps) {
       color="default"
     >
       <TableHeader>
-        <TableColumn>FIELD</TableColumn>
-        <TableColumn>VALUE</TableColumn>
+        <TableColumn>INVOICE SECTION</TableColumn>
+        <TableColumn>EXTRACTED</TableColumn>
       </TableHeader>
       <TableBody>
         {rows.map((row, index) => (
