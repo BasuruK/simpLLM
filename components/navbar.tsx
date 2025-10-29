@@ -16,12 +16,12 @@ import {
 import { User } from "@heroui/user";
 import { useTheme } from "next-themes";
 import NextLink from "next/link";
+import Image from "next/image";
 
 import {
   SunFilledIcon,
   MoonFilledIcon,
   LogoutIcon,
-  Logo,
 } from "@/components/icons";
 
 interface NavbarProps {
@@ -43,7 +43,13 @@ export const Navbar = ({ username, onLogout }: NavbarProps) => {
       <NavbarContent className="basis-1/5 sm:basis-full" justify="start">
         <NavbarBrand as="li" className="gap-3 max-w-fit">
           <NextLink className="flex justify-start items-center gap-2" href="/">
-            <Logo />
+            <Image 
+              src="/ifs_logo.svg" 
+              alt="IFS Logo" 
+              width={30} 
+              height={30}
+              className="shrink-0"
+            />
             <p className="font-bold text-inherit">
               GPT-4o Invoice Data Extractor
             </p>

@@ -7,12 +7,19 @@ import { Image } from "@heroui/image";
 import { Skeleton } from "@heroui/skeleton";
 import { Spinner } from "@heroui/spinner";
 
-import { extractDataFromFile } from "@/lib/openai";
+import { extractDataFromFile, ExtractionUsage } from "@/lib/openai";
 import {
   UploadIcon,
   CopyIcon,
   TrashIcon,
   SparklesIcon,
+  InputTokenIcon,
+  OutputTokenIcon,
+  TokenIcon,
+  ClockIcon,
+  CacheIcon,
+  CheckIcon,
+  DollarIcon,
 } from "@/components/icons";
 import { CodeEditor } from "@/components/code-editor";
 import { JsonTable } from "@/components/json-table";
@@ -38,30 +45,63 @@ export default function Home() {
   const [jsonContent, setJsonContent] = useState("");
   const [isCopied, setIsCopied] = useState(false);
   const [hasReceivedData, setHasReceivedData] = useState(false);
+  const [extractionUsage, setExtractionUsage] = useState<ExtractionUsage | null>(null);
   const hasReceivedDataRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
 
     if (file) {
-      setSelectedFile(file);
+      processFile(file);
+    }
+  };
 
-      if (file.type.startsWith("image/")) {
-        setFileType("image");
-        const reader = new FileReader();
+  const processFile = (file: File) => {
+    setSelectedFile(file);
 
-        reader.onloadend = () => {
-          setSelectedImage(reader.result as string);
-        };
-        reader.readAsDataURL(file);
-      } else if (file.type === "application/pdf") {
-        setFileType("pdf");
-        setSelectedImage(null);
-        // Create object URL for PDF preview
-        const url = URL.createObjectURL(file);
+    if (file.type.startsWith("image/")) {
+      setFileType("image");
+      const reader = new FileReader();
 
-        setPdfUrl(url);
+      reader.onloadend = () => {
+        setSelectedImage(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    } else if (file.type === "application/pdf") {
+      setFileType("pdf");
+      setSelectedImage(null);
+      // Create object URL for PDF preview
+      const url = URL.createObjectURL(file);
+
+      setPdfUrl(url);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      // Check if it's an image or PDF
+      if (file.type.startsWith("image/") || file.type === "application/pdf") {
+        processFile(file);
       }
     }
   };
@@ -143,6 +183,7 @@ export default function Home() {
     hasReceivedDataRef.current = false;
     setExtractedText("");
     setJsonContent("");
+    setExtractionUsage(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -172,12 +213,15 @@ export default function Home() {
 
       // Set the final structured result
       if (result) {
+        // Store usage statistics
+        setExtractionUsage(result.usage);
+
         // Clean up the response - remove "text" wrapper
-        let cleanedResult = result;
+        let cleanedResult = result.data;
 
         // If result has a "text" property, extract it
-        if (typeof result === "object" && result.text) {
-          cleanedResult = result.text;
+        if (typeof result.data === "object" && result.data.text) {
+          cleanedResult = result.data.text;
         }
 
         // Convert to string if it's an object
@@ -234,10 +278,15 @@ export default function Home() {
   return (
     <>
       <Navbar username={username} onLogout={handleLogout} />
-      <section className="flex flex-col items-center justify-center flex-1 py-8 gap-6 px-4">
+      <section 
+        className="flex flex-col items-center justify-center flex-1 py-8 gap-6"
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
         {selectedFile ? (
           <>
-            <div className="w-full max-w-7xl flex items-center justify-center">
+            <div className="w-full flex items-center justify-center">
               <div
                 className={`w-full grid gap-6 transition-all duration-1000 ease-in-out ${
                   isDataExtracted
@@ -252,7 +301,7 @@ export default function Home() {
                   }`}
                 >
                   {fileType === "image" && selectedImage ? (
-                    <div className="w-full h-[60vh] border border-default-200 rounded-lg overflow-auto bg-default-50 dark:bg-default-100">
+                    <div className="w-full h-[70vh] border border-default-200 rounded-lg overflow-auto bg-default-50 dark:bg-default-100">
                       <Image
                         alt="Uploaded preview"
                         className="w-full h-auto"
@@ -320,28 +369,7 @@ export default function Home() {
                         size="sm"
                         startContent={
                           isCopied ? (
-                            <svg
-                              fill="none"
-                              height="18"
-                              viewBox="0 0 24 24"
-                              width="18"
-                              xmlns="http://www.w3.org/2000/svg"
-                            >
-                              <path
-                                d="M9 11L12 14L22 4"
-                                stroke="currentColor"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth="2"
-                              />
-                              <path
-                                d="M21 12V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V5C3 3.89543 3.89543 3 5 3H16"
-                                stroke="currentColor"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth="2"
-                              />
-                            </svg>
+                            <CheckIcon size={18} />
                           ) : (
                             <CopyIcon size={18} />
                           )
@@ -392,10 +420,48 @@ export default function Home() {
 
             {/* JSON Table Section - Full Width Below - Only show after extraction is complete */}
             {isDataExtracted && !isExtracting && jsonContent && (
-              <Card className="w-full max-w-7xl p-6">
-                <h2 className="text-lg font-semibold mb-4">
-                  Structured Data View
-                </h2>
+              <Card className="w-full p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-semibold">
+                    Structured Data View
+                  </h2>
+                  {extractionUsage && (
+                    <div className="flex items-center gap-4 text-sm text-default-500">
+                      <div className="flex items-center gap-1.5">
+                        <InputTokenIcon size={16} />
+                        <span className="font-medium">{extractionUsage.inputTokens.toLocaleString()}</span>
+                        <span className="text-xs">in</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <OutputTokenIcon size={16} />
+                        <span className="font-medium">{extractionUsage.outputTokens.toLocaleString()}</span>
+                        <span className="text-xs">out</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <TokenIcon size={16} />
+                        <span className="font-medium">{extractionUsage.totalTokens.toLocaleString()}</span>
+                        <span className="text-xs">total</span>
+                      </div>
+                      {extractionUsage.cachedTokens && extractionUsage.cachedTokens > 0 && (
+                        <div className="flex items-center gap-1.5 text-success-500">
+                          <CacheIcon size={16} />
+                          <span className="font-medium">{extractionUsage.cachedTokens.toLocaleString()}</span>
+                          <span className="text-xs">cached</span>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-1.5">
+                        <ClockIcon size={16} />
+                        <span className="font-medium">{(extractionUsage.durationMs / 1000).toFixed(2)}s</span>
+                      </div>
+                      {extractionUsage.estimatedCost !== undefined && (
+                        <div className="flex items-center gap-1.5 text-warning-500">
+                          <DollarIcon size={16} />
+                          <span className="font-medium">${extractionUsage.estimatedCost.toFixed(6)}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
                 <JsonTable jsonContent={jsonContent} />
               </Card>
             )}
@@ -405,7 +471,7 @@ export default function Home() {
             <div>
               <p className="text-lg">No file uploaded yet</p>
               <p className="text-sm mt-2">
-                Click the button below to upload an image or PDF
+                Click the button below to upload an image or PDF or simply drag and drop it here.
               </p>
             </div>
 
@@ -423,7 +489,7 @@ export default function Home() {
                 size="lg"
                 startContent={<UploadIcon size={20} />}
                 variant="shadow"
-                onClick={handleButtonClick}
+                onPress={handleButtonClick}
               >
                 Upload File
               </Button>

@@ -44,7 +44,7 @@ export default function RootLayout({
         <Providers themeProps={{ attribute: "class", defaultTheme: "dark" }}>
           <UpdateNotification />
           <div className="relative flex flex-col min-h-screen">
-            <main className="container mx-auto max-w-7xl px-6 flex-grow flex flex-col">
+            <main className="w-full px-20 flex-grow flex flex-col">
               {children}
             </main>
             <footer className="w-full flex items-center justify-center py-3 mt-auto">

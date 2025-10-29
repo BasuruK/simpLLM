@@ -151,6 +151,22 @@ export function UpdateNotification() {
                 )}
               </div>
 
+              {/* Release Notes / Changelog */}
+              {updateInfo.releaseNotes && (
+                <div className="space-y-2">
+                  <h4 className="text-sm font-semibold text-default-700">
+                    What's New:
+                  </h4>
+                  <div className="max-h-60 overflow-y-auto p-3 bg-default-100 dark:bg-default-50/10 rounded-lg">
+                    <div className="text-sm text-default-600 dark:text-default-400 whitespace-pre-wrap">
+                      {typeof updateInfo.releaseNotes === 'string' 
+                        ? updateInfo.releaseNotes
+                        : updateInfo.releaseNotes}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {error && (
                 <div className="p-3 bg-danger-50 dark:bg-danger-900/20 rounded-lg">
                   <p className="text-sm text-danger">{error}</p>

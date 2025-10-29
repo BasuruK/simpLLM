@@ -12,13 +12,60 @@ function getApiKey(): string {
 }
 
 /**
+ * Usage statistics for the extraction
+ */
+export interface ExtractionUsage {
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  cachedTokens?: number;
+  durationMs: number;
+  estimatedCost?: number;
+}
+
+// GPT-4o pricing per 1M tokens (in USD)
+const GPT4O_PRICING = {
+  INPUT_PER_1M: 2.50,
+  CACHED_INPUT_PER_1M: 1.25,
+  OUTPUT_PER_1M: 10.00,
+};
+
+/**
+ * Calculate the estimated cost based on token usage
+ */
+function calculateCost(
+  inputTokens: number,
+  outputTokens: number,
+  cachedTokens: number
+): number {
+  // Calculate non-cached input tokens
+  const nonCachedInputTokens = inputTokens - cachedTokens;
+  
+  // Calculate costs (divide by 1M to get the rate per token)
+  const nonCachedInputCost = (nonCachedInputTokens / 1_000_000) * GPT4O_PRICING.INPUT_PER_1M;
+  const cachedInputCost = (cachedTokens / 1_000_000) * GPT4O_PRICING.CACHED_INPUT_PER_1M;
+  const outputCost = (outputTokens / 1_000_000) * GPT4O_PRICING.OUTPUT_PER_1M;
+  
+  // Total cost
+  return nonCachedInputCost + cachedInputCost + outputCost;
+}
+
+/**
+ * Result from extraction including usage statistics
+ */
+export interface ExtractionResult {
+  data: any;
+  usage: ExtractionUsage;
+}
+
+/**
  * Streams OpenAI-compatible API responses as newline-delimited JSON events
  * and extracts the final structured JSON output
  */
 export async function extractDataFromFile(
   file: File,
   onStream?: (text: string) => void,
-): Promise<any> {
+): Promise<ExtractionResult> {
   let uploadedFileId: string | null = null;
 
   try {
@@ -140,6 +187,13 @@ export async function extractDataFromFile(
     let streamedText = "";
     let finalResult: any = null;
     
+    // Track usage statistics
+    const startTime = Date.now();
+    let inputTokens = 0;
+    let outputTokens = 0;
+    let totalTokens = 0;
+    let cachedTokens = 0;
+    
     // Batching variables for smoother streaming
     let pendingUpdate = false;
     let updateScheduled = false;
@@ -217,6 +271,19 @@ export async function extractDataFromFile(
                 }
               }
             }
+
+            // Capture usage information from response.done event
+            if (event.type === "response.completed") {
+              // Check both possible locations for usage data
+              const usage = event.response?.usage || event.usage;
+              
+              if (usage) {
+                inputTokens = usage.input_tokens || 0;
+                outputTokens = usage.output_tokens || 0;
+                totalTokens = usage.total_tokens || 0;
+                cachedTokens = usage.input_tokens_details?.cached_tokens || 0;
+              }
+            }
           } catch (parseError) {
             // Skip unparseable lines silently
             // Continue processing other events
@@ -255,19 +322,42 @@ export async function extractDataFromFile(
       reader.releaseLock();
     }
 
-    // Return the final structured result or fallback to streamed text
+    // Calculate duration
+    const durationMs = Date.now() - startTime;
+
+    // Calculate estimated cost
+    const estimatedCost = calculateCost(inputTokens, outputTokens, cachedTokens);
+
+    // Prepare the result data
+    let resultData: any;
     if (finalResult) {
-      return finalResult;
+      resultData = finalResult;
     } else if (streamedText) {
       // Try to parse streamed text as JSON, otherwise return as-is
       try {
-        return JSON.parse(streamedText);
+        resultData = JSON.parse(streamedText);
       } catch {
-        return { text: streamedText };
+        resultData = { text: streamedText };
       }
     } else {
       throw new Error("No output received from API");
     }
+
+    // Build final response with usage statistics
+    const finalResponse = {
+      data: resultData,
+      usage: {
+        inputTokens,
+        outputTokens,
+        totalTokens: totalTokens || (inputTokens + outputTokens), // Use API total or calculate
+        cachedTokens: cachedTokens > 0 ? cachedTokens : undefined,
+        durationMs,
+        estimatedCost,
+      },
+    };
+
+    // Return result with usage statistics
+    return finalResponse;
   } catch (error) {
     throw new Error(
       `Failed to extract data: ${error instanceof Error ? error.message : "Unknown error"}`,
