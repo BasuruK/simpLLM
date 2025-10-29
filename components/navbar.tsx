@@ -70,6 +70,9 @@ export const Navbar = ({ username, onLogout }: NavbarProps) => {
                     name: username,
                   }}
                   className="transition-transform cursor-pointer"
+                  classNames={{
+                    name: "font-bold"
+                  }}
                   name={username}
                 />
               </DropdownTrigger>

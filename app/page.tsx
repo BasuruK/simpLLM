@@ -471,7 +471,9 @@ export default function Home() {
             <div>
               <p className="text-lg">No file uploaded yet</p>
               <p className="text-sm mt-2">
-                Click the button below to upload an image or PDF or simply drag and drop it here.
+                Click the button below to upload an image or PDF or
+                <br />
+                simply drag and drop here.
               </p>
             </div>
 
