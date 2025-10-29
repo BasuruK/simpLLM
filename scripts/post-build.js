@@ -61,12 +61,14 @@ exports.default = async function(context) {
   // 4. The .zip (for manual downloads)
   
   const filesToPublish = artifactPaths.filter(p => {
-    // Include: .exe, .blockmap, latest.yml, and our created .zip
+    // Include: .exe, .blockmap, latest.yml
     return p.endsWith('.exe') || 
            p.endsWith('.blockmap') || 
-           p.endsWith('latest.yml') ||
-           p === zipPath;
+           p.endsWith('latest.yml');
   });
+  
+  // Add the ZIP file we just created
+  filesToPublish.push(zipPath);
   
   console.log('📤 Files to be published:');
   filesToPublish.forEach(f => console.log(`   - ${path.basename(f)}`));
