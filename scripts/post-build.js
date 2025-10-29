@@ -54,6 +54,23 @@ exports.default = async function(context) {
   console.log('🚀 ZIP file will be published to GitHub (excluding raw .exe)');
   console.log('ℹ️  Auto-update files (.blockmap, latest.yml) will still be published');
   
-  return [zipPath];
+  // For auto-updates to work, we need to publish:
+  // 1. The .exe file (for the actual update download)
+  // 2. The .exe.blockmap (for differential updates)
+  // 3. The latest.yml (update metadata)
+  // 4. The .zip (for manual downloads)
+  
+  const filesToPublish = artifactPaths.filter(p => {
+    // Include: .exe, .blockmap, latest.yml, and our created .zip
+    return p.endsWith('.exe') || 
+           p.endsWith('.blockmap') || 
+           p.endsWith('latest.yml') ||
+           p === zipPath;
+  });
+  
+  console.log('📤 Files to be published:');
+  filesToPublish.forEach(f => console.log(`   - ${path.basename(f)}`));
+  
+  return filesToPublish;
 };
 

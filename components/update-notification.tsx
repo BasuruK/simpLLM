@@ -79,6 +79,13 @@ export function UpdateNotification() {
     if (window.electron?.updater) {
       setIsDownloading(true);
       setError(null);
+      // Initialize progress immediately to show the progress bar right away
+      setDownloadProgress({
+        percent: 0,
+        bytesPerSecond: 0,
+        transferred: 0,
+        total: 0,
+      });
       window.electron.updater.downloadUpdate();
     }
   };
@@ -173,22 +180,30 @@ export function UpdateNotification() {
                 </div>
               )}
 
-              {isDownloading && downloadProgress && (
+              {isDownloading && (
                 <div className="space-y-2">
                   <Progress
+                    aria-label="Downloading update..."
                     className="max-w-full"
-                    color="primary"
+                    color="success"
                     showValueLabel={true}
-                    size="sm"
-                    value={downloadProgress.percent}
+                    size="md"
+                    value={downloadProgress?.percent || 0}
                   />
-                  <div className="flex justify-between text-xs text-default-500">
-                    <span>
-                      {formatBytes(downloadProgress.transferred)} /{" "}
-                      {formatBytes(downloadProgress.total)}
-                    </span>
-                    <span>{formatSpeed(downloadProgress.bytesPerSecond)}</span>
-                  </div>
+                  {downloadProgress && downloadProgress.total > 0 && (
+                    <div className="flex justify-between text-xs text-default-500">
+                      <span>
+                        {formatBytes(downloadProgress.transferred)} /{" "}
+                        {formatBytes(downloadProgress.total)}
+                      </span>
+                      <span>{formatSpeed(downloadProgress.bytesPerSecond)}</span>
+                    </div>
+                  )}
+                  {(!downloadProgress || downloadProgress.total === 0) && (
+                    <div className="text-xs text-center text-default-500">
+                      Initializing download...
+                    </div>
+                  )}
                 </div>
               )}
 
