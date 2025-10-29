@@ -100,13 +100,12 @@ export function CodeEditor({
 
   return (
     <div
-      role="textbox"
-      tabIndex={readOnly ? undefined : 0}
       className={`border border-default-200 rounded-lg p-3 overflow-auto ${
         readOnly
           ? "bg-default-100/50 dark:bg-default-100/30"
           : "bg-default-50 dark:bg-default-100/50 cursor-text"
       }`}
+      role="textbox"
       style={{
         minHeight: `${minHeight}rem`,
         maxHeight: "70vh",
@@ -117,6 +116,7 @@ export function CodeEditor({
         whiteSpace: "pre-wrap",
         wordBreak: "break-word",
       }}
+      tabIndex={readOnly ? undefined : 0}
       onClick={focusEditor}
       onCompositionEnd={handleCompositionEnd}
       onCompositionStart={handleCompositionStart}

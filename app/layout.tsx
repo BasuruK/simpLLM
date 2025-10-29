@@ -49,13 +49,15 @@ export default function RootLayout({
             </main>
             <footer className="w-full flex items-center justify-center py-3 mt-auto">
               <div className="flex flex-col items-center">
-                <span className="text-default-500 text-sm">v{require('../package.json').version}</span>
+                <span className="text-default-500 text-sm">
+                  v{require("../package.json").version}
+                </span>
                 <Link
                   isExternal
                   className="flex items-center gap-1 text-current"
                   href="https://witty-river-08852a710.1.azurestaticapps.net"
-                  title="Finance AI homepage, your one stop AI place for all things Finance">
-                  
+                  title="Finance AI homepage, your one stop AI place for all things Finance"
+                >
                   <span className="text-default-600">Powered by</span>
                   <p className="text-primary">Finance AI</p>
                 </Link>

@@ -25,9 +25,9 @@ export interface ExtractionUsage {
 
 // GPT-4o pricing per 1M tokens (in USD)
 const GPT4O_PRICING = {
-  INPUT_PER_1M: 2.50,
+  INPUT_PER_1M: 2.5,
   CACHED_INPUT_PER_1M: 1.25,
-  OUTPUT_PER_1M: 10.00,
+  OUTPUT_PER_1M: 10.0,
 };
 
 /**
@@ -36,16 +36,18 @@ const GPT4O_PRICING = {
 function calculateCost(
   inputTokens: number,
   outputTokens: number,
-  cachedTokens: number
+  cachedTokens: number,
 ): number {
   // Calculate non-cached input tokens
   const nonCachedInputTokens = inputTokens - cachedTokens;
-  
+
   // Calculate costs (divide by 1M to get the rate per token)
-  const nonCachedInputCost = (nonCachedInputTokens / 1_000_000) * GPT4O_PRICING.INPUT_PER_1M;
-  const cachedInputCost = (cachedTokens / 1_000_000) * GPT4O_PRICING.CACHED_INPUT_PER_1M;
+  const nonCachedInputCost =
+    (nonCachedInputTokens / 1_000_000) * GPT4O_PRICING.INPUT_PER_1M;
+  const cachedInputCost =
+    (cachedTokens / 1_000_000) * GPT4O_PRICING.CACHED_INPUT_PER_1M;
   const outputCost = (outputTokens / 1_000_000) * GPT4O_PRICING.OUTPUT_PER_1M;
-  
+
   // Total cost
   return nonCachedInputCost + cachedInputCost + outputCost;
 }
@@ -140,7 +142,7 @@ export async function extractDataFromFile(
     // Make direct fetch call to get raw streaming response
     const requestBody = {
       prompt: {
-        id: "pmpt_68f9c3199cec81949e6b6611f1eedaff0b7b1713aaa337a5"
+        id: "pmpt_68f9c3199cec81949e6b6611f1eedaff0b7b1713aaa337a5",
       },
       stream: true,
       input: [
@@ -186,14 +188,14 @@ export async function extractDataFromFile(
     let buffer = "";
     let streamedText = "";
     let finalResult: any = null;
-    
+
     // Track usage statistics
     const startTime = Date.now();
     let inputTokens = 0;
     let outputTokens = 0;
     let totalTokens = 0;
     let cachedTokens = 0;
-    
+
     // Batching variables for smoother streaming
     let pendingUpdate = false;
     let updateScheduled = false;
@@ -276,7 +278,7 @@ export async function extractDataFromFile(
             if (event.type === "response.completed") {
               // Check both possible locations for usage data
               const usage = event.response?.usage || event.usage;
-              
+
               if (usage) {
                 inputTokens = usage.input_tokens || 0;
                 outputTokens = usage.output_tokens || 0;
@@ -326,10 +328,15 @@ export async function extractDataFromFile(
     const durationMs = Date.now() - startTime;
 
     // Calculate estimated cost
-    const estimatedCost = calculateCost(inputTokens, outputTokens, cachedTokens);
+    const estimatedCost = calculateCost(
+      inputTokens,
+      outputTokens,
+      cachedTokens,
+    );
 
     // Prepare the result data
     let resultData: any;
+
     if (finalResult) {
       resultData = finalResult;
     } else if (streamedText) {
@@ -349,7 +356,7 @@ export async function extractDataFromFile(
       usage: {
         inputTokens,
         outputTokens,
-        totalTokens: totalTokens || (inputTokens + outputTokens), // Use API total or calculate
+        totalTokens: totalTokens || inputTokens + outputTokens, // Use API total or calculate
         cachedTokens: cachedTokens > 0 ? cachedTokens : undefined,
         durationMs,
         estimatedCost,

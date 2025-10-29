@@ -18,11 +18,7 @@ import { useTheme } from "next-themes";
 import NextLink from "next/link";
 import Image from "next/image";
 
-import {
-  SunFilledIcon,
-  MoonFilledIcon,
-  LogoutIcon,
-} from "@/components/icons";
+import { SunFilledIcon, MoonFilledIcon, LogoutIcon } from "@/components/icons";
 
 interface NavbarProps {
   username?: string | null;
@@ -43,12 +39,12 @@ export const Navbar = ({ username, onLogout }: NavbarProps) => {
       <NavbarContent className="basis-1/5 sm:basis-full" justify="start">
         <NavbarBrand as="li" className="gap-3 max-w-fit">
           <NextLink className="flex justify-start items-center gap-2" href="/">
-            <Image 
-              src="/ifs_logo.svg" 
-              alt="IFS Logo" 
-              width={30} 
-              height={30}
+            <Image
+              alt="IFS Logo"
               className="shrink-0"
+              height={30}
+              src="/ifs_logo.svg"
+              width={30}
             />
             <p className="font-bold text-inherit">
               GPT-4o Invoice Data Extractor
@@ -71,7 +67,7 @@ export const Navbar = ({ username, onLogout }: NavbarProps) => {
                   }}
                   className="transition-transform cursor-pointer"
                   classNames={{
-                    name: "font-bold"
+                    name: "font-bold",
                   }}
                   name={username}
                 />

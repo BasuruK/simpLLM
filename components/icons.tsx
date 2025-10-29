@@ -516,4 +516,3 @@ export const DollarIcon: React.FC<IconSvgProps> = ({
     />
   </svg>
 );
-

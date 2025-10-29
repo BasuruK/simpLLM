@@ -45,7 +45,8 @@ export default function Home() {
   const [jsonContent, setJsonContent] = useState("");
   const [isCopied, setIsCopied] = useState(false);
   const [hasReceivedData, setHasReceivedData] = useState(false);
-  const [extractionUsage, setExtractionUsage] = useState<ExtractionUsage | null>(null);
+  const [extractionUsage, setExtractionUsage] =
+    useState<ExtractionUsage | null>(null);
   const hasReceivedDataRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -97,8 +98,10 @@ export default function Home() {
     setIsDragOver(false);
 
     const files = e.dataTransfer.files;
+
     if (files && files.length > 0) {
       const file = files[0];
+
       // Check if it's an image or PDF
       if (file.type.startsWith("image/") || file.type === "application/pdf") {
         processFile(file);
@@ -278,10 +281,10 @@ export default function Home() {
   return (
     <>
       <Navbar username={username} onLogout={handleLogout} />
-      <section 
+      <section
         className="flex flex-col items-center justify-center flex-1 py-8 gap-6"
-        onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
+        onDragOver={handleDragOver}
         onDrop={handleDrop}
       >
         {selectedFile ? (
@@ -429,34 +432,47 @@ export default function Home() {
                     <div className="flex items-center gap-4 text-sm text-default-500">
                       <div className="flex items-center gap-1.5">
                         <InputTokenIcon size={16} />
-                        <span className="font-medium">{extractionUsage.inputTokens.toLocaleString()}</span>
+                        <span className="font-medium">
+                          {extractionUsage.inputTokens.toLocaleString()}
+                        </span>
                         <span className="text-xs">in</span>
                       </div>
                       <div className="flex items-center gap-1.5">
                         <OutputTokenIcon size={16} />
-                        <span className="font-medium">{extractionUsage.outputTokens.toLocaleString()}</span>
+                        <span className="font-medium">
+                          {extractionUsage.outputTokens.toLocaleString()}
+                        </span>
                         <span className="text-xs">out</span>
                       </div>
                       <div className="flex items-center gap-1.5">
                         <TokenIcon size={16} />
-                        <span className="font-medium">{extractionUsage.totalTokens.toLocaleString()}</span>
+                        <span className="font-medium">
+                          {extractionUsage.totalTokens.toLocaleString()}
+                        </span>
                         <span className="text-xs">total</span>
                       </div>
-                      {extractionUsage.cachedTokens && extractionUsage.cachedTokens > 0 && (
-                        <div className="flex items-center gap-1.5 text-success-500">
-                          <CacheIcon size={16} />
-                          <span className="font-medium">{extractionUsage.cachedTokens.toLocaleString()}</span>
-                          <span className="text-xs">cached</span>
-                        </div>
-                      )}
+                      {extractionUsage.cachedTokens &&
+                        extractionUsage.cachedTokens > 0 && (
+                          <div className="flex items-center gap-1.5 text-success-500">
+                            <CacheIcon size={16} />
+                            <span className="font-medium">
+                              {extractionUsage.cachedTokens.toLocaleString()}
+                            </span>
+                            <span className="text-xs">cached</span>
+                          </div>
+                        )}
                       <div className="flex items-center gap-1.5">
                         <ClockIcon size={16} />
-                        <span className="font-medium">{(extractionUsage.durationMs / 1000).toFixed(2)}s</span>
+                        <span className="font-medium">
+                          {(extractionUsage.durationMs / 1000).toFixed(2)}s
+                        </span>
                       </div>
                       {extractionUsage.estimatedCost !== undefined && (
                         <div className="flex items-center gap-1.5 text-warning-500">
                           <DollarIcon size={16} />
-                          <span className="font-medium">${extractionUsage.estimatedCost.toFixed(6)}</span>
+                          <span className="font-medium">
+                            ${extractionUsage.estimatedCost.toFixed(6)}
+                          </span>
                         </div>
                       )}
                     </div>
