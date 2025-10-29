@@ -1,6 +1,6 @@
 {
   "appId": "com.simpllm.app",
-  "productName": "simpLLM",
+  "productName": "Simple Invoice Scanner",
   "directories": {
     "output": "dist",
     "buildResources": "build"
@@ -22,6 +22,7 @@
     "repo": "simpLLM",
     "private": true,
     "timeout": 600000,
+    "publishAutoUpdate": true,
     "requestHeaders": {
       "Accept": "application/vnd.github.v3+json"
     }
@@ -34,8 +35,11 @@
       }
     ],
     "icon": "build/icon.ico",
-    "artifactName": "${productName}-${version}-${arch}.${ext}",
-    "signAndEditExecutable": false
+    "artifactName": "${productName}_${version}.${ext}",
+    "signAndEditExecutable": false,
+    "verifyUpdateCodeSignature": false,
+    "legalTrademarks": "IFS RnD Finance",
+    "requestedExecutionLevel": "asInvoker"
   },
   "mac": {
     "target": ["dmg", "zip"],
@@ -46,15 +50,18 @@
     "entitlements": "build/entitlements.mac.plist",
     "entitlementsInherit": "build/entitlements.mac.plist"
   },
-  "linux": {
-    "target": ["AppImage", "deb"],
-    "icon": "build/icon.png",
-    "category": "Utility"
-  },
   "nsis": {
-    "oneClick": false,
-    "allowToChangeInstallationDirectory": true,
+    "oneClick": true,
+    "perMachine": false,
+    "allowElevation": false,
+    "allowToChangeInstallationDirectory": false,
     "createDesktopShortcut": true,
-    "createStartMenuShortcut": true
-  }
+    "createStartMenuShortcut": true,
+    "deleteAppDataOnUninstall": true,
+    "runAfterFinish": true,
+    "installerIcon": "build/icon.ico",
+    "uninstallerIcon": "build/icon.ico",
+    "installerHeaderIcon": "build/icon.ico"
+  },
+  "afterAllArtifactBuild": "./scripts/post-build.js"
 }
