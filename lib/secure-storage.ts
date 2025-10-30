@@ -9,6 +9,7 @@ let cachedDecryptedKey: string | null = null;
 export interface UserCredentials {
   username: string;
   encryptedApiKey: string; // This is the encrypted key provided by the user
+  avatarUrl?: string; // Generated avatar URL stored at login
 }
 
 /**
@@ -48,6 +49,15 @@ export function decryptApiKey(encryptedKeyBase64: string): string {
 }
 
 /**
+ * Generate a random avatar URL using robohash
+ */
+function generateAvatarUrl(): string {
+  const randomId = Math.floor(Math.random() * 10000);
+
+  return `https://robohash.org/${randomId}?set=set3`;
+}
+
+/**
  * Save credentials to localStorage and cache the decrypted key
  * The API key should already be encrypted by the user (AES-256)
  */
@@ -55,9 +65,14 @@ export function saveCredentials(
   username: string,
   encryptedApiKey: string,
 ): void {
+  // Generate avatar URL only if it doesn't exist
+  const existingCredentials = loadCredentials();
+  const avatarUrl = existingCredentials?.avatarUrl || generateAvatarUrl();
+
   const credentials: UserCredentials = {
     username,
     encryptedApiKey,
+    avatarUrl,
   };
 
   if (typeof window !== "undefined") {
@@ -127,6 +142,15 @@ export function getUsername(): string | null {
   const credentials = loadCredentials();
 
   return credentials?.username || null;
+}
+
+/**
+ * Get avatar URL from storage
+ */
+export function getAvatarUrl(): string | null {
+  const credentials = loadCredentials();
+
+  return credentials?.avatarUrl || null;
 }
 
 /**

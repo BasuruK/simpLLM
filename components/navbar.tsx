@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   Navbar as HeroUINavbar,
   NavbarContent,
@@ -13,23 +14,35 @@ import {
   DropdownSection,
   DropdownItem,
 } from "@heroui/dropdown";
-import { User } from "@heroui/user";
+import { Avatar } from "@heroui/avatar";
+import { Badge } from "@heroui/badge";
 import { useTheme } from "next-themes";
 import NextLink from "next/link";
 import Image from "next/image";
 
-import { SunFilledIcon, MoonFilledIcon, LogoutIcon } from "@/components/icons";
+import {
+  SunFilledIcon,
+  MoonFilledIcon,
+  LogoutIcon,
+  SettingsIcon,
+} from "@/components/icons";
 
 interface NavbarProps {
   username?: string | null;
+  avatarUrl?: string | null;
   onLogout?: () => void;
 }
 
-export const Navbar = ({ username, onLogout }: NavbarProps) => {
+export const Navbar = ({ username, avatarUrl, onLogout }: NavbarProps) => {
   const { theme, setTheme } = useTheme();
+  const [isDeveloperMode, setIsDeveloperMode] = useState(false);
 
   const toggleTheme = () => {
     setTheme(theme === "light" ? "dark" : "light");
+  };
+
+  const toggleDeveloperMode = () => {
+    setIsDeveloperMode(!isDeveloperMode);
   };
 
   const iconClasses = "text-xl text-default-500 pointer-events-none shrink-0";
@@ -58,19 +71,24 @@ export const Navbar = ({ username, onLogout }: NavbarProps) => {
           <NavbarItem>
             <Dropdown placement="bottom-end">
               <DropdownTrigger>
-                <User
-                  as="button"
-                  avatarProps={{
-                    isBordered: false,
-                    color: "default",
-                    name: username,
-                  }}
-                  className="transition-transform cursor-pointer"
-                  classNames={{
-                    name: "font-bold",
-                  }}
-                  name={username}
-                />
+                <button className="flex items-center gap-3 bg-transparent outline-none transition-transform cursor-pointer">
+                  <Badge
+                    color="warning"
+                    content="DEV"
+                    isInvisible={!isDeveloperMode}
+                    placement="bottom-right"
+                    size="sm"
+                  >
+                    <Avatar
+                      className="transition-transform"
+                      color={isDeveloperMode ? "warning" : "default"}
+                      isBordered={isDeveloperMode}
+                      name={username || undefined}
+                      src={avatarUrl || undefined}
+                    />
+                  </Badge>
+                  <span className="font-bold text-inherit">{username}</span>
+                </button>
               </DropdownTrigger>
               <DropdownMenu aria-label="User Actions" variant="faded">
                 <DropdownSection showDivider title="Settings">
@@ -87,6 +105,28 @@ export const Navbar = ({ username, onLogout }: NavbarProps) => {
                     onPress={toggleTheme}
                   >
                     {theme === "light" ? "Dark Mode" : "Light Mode"}
+                  </DropdownItem>
+                  <DropdownItem
+                    key="developer"
+                    className={isDeveloperMode ? "text-warning" : ""}
+                    color={isDeveloperMode ? "warning" : "default"}
+                    description={
+                      isDeveloperMode
+                        ? "Disable developer options"
+                        : "Enable developer options"
+                    }
+                    startContent={
+                      <SettingsIcon
+                        className={
+                          isDeveloperMode
+                            ? "text-xl text-warning pointer-events-none shrink-0"
+                            : iconClasses
+                        }
+                      />
+                    }
+                    onPress={toggleDeveloperMode}
+                  >
+                    Developer Options
                   </DropdownItem>
                 </DropdownSection>
                 <DropdownSection title="Actions">

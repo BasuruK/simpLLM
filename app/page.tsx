@@ -28,6 +28,7 @@ import { Navbar } from "@/components/navbar";
 import {
   isAuthenticated,
   getUsername,
+  getAvatarUrl,
   clearCredentials,
 } from "@/lib/secure-storage";
 
@@ -35,6 +36,7 @@ export default function Home() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [username, setUsername] = useState<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
@@ -121,8 +123,10 @@ export default function Home() {
       setIsLoggedIn(authenticated);
       if (authenticated) {
         const user = getUsername();
+        const avatar = getAvatarUrl();
 
         setUsername(user);
+        setAvatarUrl(avatar);
       }
       setIsCheckingAuth(false);
     };
@@ -132,8 +136,10 @@ export default function Home() {
 
   const handleLogin = () => {
     const user = getUsername();
+    const avatar = getAvatarUrl();
 
     setUsername(user);
+    setAvatarUrl(avatar);
     setIsLoggedIn(true);
   };
 
@@ -141,6 +147,7 @@ export default function Home() {
     clearCredentials();
     setIsLoggedIn(false);
     setUsername(null);
+    setAvatarUrl(null);
     // Clear all app state
     handleClearImage();
   };
@@ -280,7 +287,11 @@ export default function Home() {
 
   return (
     <>
-      <Navbar username={username} onLogout={handleLogout} />
+      <Navbar
+        avatarUrl={avatarUrl}
+        username={username}
+        onLogout={handleLogout}
+      />
       <section
         className="flex flex-col items-center justify-center flex-1 py-8 gap-6"
         onDragLeave={handleDragLeave}

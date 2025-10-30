@@ -25,14 +25,14 @@
     "electron:dev": "tsc -p electron/tsconfig.json && concurrently \"npm run dev\" \"wait-on http://localhost:3000 && cross-env NODE_ENV=development electron .\"",
     "electron:dev:win": "tsc -p electron/tsconfig.json && concurrently \"npm run dev\" \"wait-on http://localhost:3000 && cross-env NODE_ENV=development electron .\"",
     "electron:start": "tsc -p electron/tsconfig.json && electron .",
-    "electron:build": "npm run build && tsc -p electron/tsconfig.json && electron-builder",
     "electron:build:win": "npm run build:win && tsc -p electron/tsconfig.json && electron-builder --win",
     "electron:build:mac": "npm run build && tsc -p electron/tsconfig.json && electron-builder --mac",
-    "electron:publish": "npm run build && tsc -p electron/tsconfig.json && electron-builder --publish always",
     "electron:publish:win": "npm run build:win && tsc -p electron/tsconfig.json && electron-builder --win --publish always",
     "electron:publish:mac": "npm run build && tsc -p electron/tsconfig.json && electron-builder --mac --publish always"
   },
   "dependencies": {
+    "@heroui/avatar": "^2.2.22",
+    "@heroui/badge": "^2.2.17",
     "@heroui/button": "2.2.27",
     "@heroui/card": "2.2.25",
     "@heroui/dropdown": "^2.3.27",
