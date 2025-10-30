@@ -5,6 +5,7 @@
     "output": "dist",
     "buildResources": "build"
   },
+  "electronLanguages": ["en"],
   "files": [
     "out/**/*",
     "electron/dist/**/*",
@@ -14,6 +15,16 @@
     "!node_modules/@img/*darwin*/**",
     "!node_modules/@img/sharp-linux*/**",
     "!node_modules/@img/*linux*/**"
+  ],
+  "extraResources": [
+    {
+      "from": "build/icon.ico",
+      "to": "icon.ico"
+    },
+    {
+      "from": "build/icon.icns",
+      "to": "icon.icns"
+    }
   ],
   "asarUnpack": [],
   "publish": {
