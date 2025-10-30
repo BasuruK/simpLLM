@@ -6,23 +6,22 @@ import log from "electron-log";
 log.transports.file.level = "info";
 autoUpdater.logger = log;
 
-// Configure auto-updater for private GitHub repository
+// Configure auto-updater for public GitHub repository
 export function setupAutoUpdater(mainWindow: BrowserWindow | null) {
   // Set update check interval (check every 5 minutes)
   const CHECK_INTERVAL = 5 * 60 * 1000;
 
-  // Configure auto-updater for private repository
+  // Configure auto-updater
   autoUpdater.autoDownload = false; // Don't auto-download, wait for user confirmation
   autoUpdater.autoInstallOnAppQuit = true;
 
-  // For private GitHub repos, set the token
-  // The token should be embedded during build or fetched securely
+  // GitHub repository configuration (public repository)
+  // No authentication required - all users can check for and download updates
   autoUpdater.setFeedURL({
     provider: "github",
     owner: "BasuruK",
     repo: "simpLLM",
-    private: true,
-    token: process.env.GH_TOKEN || "", // Token will be set at build time
+    private: false, // Public repository - no token needed
   });
 
   // Event: Checking for update
