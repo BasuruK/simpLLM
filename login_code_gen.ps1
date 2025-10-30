@@ -38,7 +38,7 @@ if ($keyBytes.Length -ne 32) {
 $iv = New-Object byte[] 16
 for ($i = 0; $i -lt 16; $i++) {
     $iv[$i] = 0
-}
+} 
 
 # Create AES cipher
 $aes = [System.Security.Cryptography.Aes]::Create()

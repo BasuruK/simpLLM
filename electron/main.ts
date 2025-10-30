@@ -19,17 +19,12 @@ const loadURL = serve({ directory: "out" });
 const isDev = process.env.NODE_ENV === "development";
 
 function createWindow() {
-  // Icon path - in production it's in resources folder
-  const iconPath = process.platform === "win32" 
-    ? path.join(process.resourcesPath, "icon.ico")
-    : path.join(process.resourcesPath, "icon.icns");
-
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     minWidth: 800,
     minHeight: 600,
-    icon: iconPath,
+    icon: path.join(__dirname, "..", "build", "icon.ico"),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       nodeIntegration: false,
@@ -74,11 +69,6 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-  // Set the app icon for Windows taskbar
-  if (process.platform === "win32") {
-    app.setAppUserModelId("com.simpllm.app");
-  }
-
   createWindow();
 
   // Setup IPC handlers for auto-updater
