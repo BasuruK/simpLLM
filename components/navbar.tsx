@@ -14,17 +14,30 @@ import {
   DropdownSection,
   DropdownItem,
 } from "@heroui/dropdown";
+import {
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  useDisclosure,
+} from "@heroui/modal";
 import { Avatar } from "@heroui/avatar";
 import { Badge } from "@heroui/badge";
+import { Button } from "@heroui/button";
+import { Card, CardHeader, CardBody, CardFooter } from "@heroui/card";
+import { Divider } from "@heroui/divider";
+import { Image } from "@heroui/image";
 import { useTheme } from "next-themes";
 import NextLink from "next/link";
-import Image from "next/image";
+import NextImage from "next/image";
 
 import {
   SunFilledIcon,
   MoonFilledIcon,
   LogoutIcon,
   SettingsIcon,
+  InfoIcon,
 } from "@/components/icons";
 
 interface NavbarProps {
@@ -36,6 +49,7 @@ interface NavbarProps {
 export const Navbar = ({ username, avatarUrl, onLogout }: NavbarProps) => {
   const { theme, setTheme } = useTheme();
   const [isDeveloperMode, setIsDeveloperMode] = useState(false);
+  const { isOpen, onOpen, onOpenChange } = useDisclosure();
 
   // Load developer mode from localStorage on mount
   useEffect(() => {
@@ -74,12 +88,12 @@ export const Navbar = ({ username, avatarUrl, onLogout }: NavbarProps) => {
       <NavbarContent className="basis-1/5 sm:basis-full" justify="start">
         <NavbarBrand as="li" className="gap-3 max-w-fit">
           <NextLink className="flex justify-start items-center gap-2" href="/">
-            <Image
+            <NextImage
               alt="IFS Logo"
               className="shrink-0"
-              height={30}
-              src="/ifs_logo.svg"
-              width={30}
+              height={50}
+              src="/ifs_logo.png"
+              width={50}
             />
             <p className="font-bold text-inherit">
               GPT-4o Invoice Data Extractor
@@ -151,6 +165,16 @@ export const Navbar = ({ username, avatarUrl, onLogout }: NavbarProps) => {
                     Developer Options
                   </DropdownItem>
                 </DropdownSection>
+                <DropdownSection showDivider title="Information">
+                  <DropdownItem
+                    key="about"
+                    description="About this application"
+                    startContent={<InfoIcon className={iconClasses} />}
+                    onPress={onOpen}
+                  >
+                    About
+                  </DropdownItem>
+                </DropdownSection>
                 <DropdownSection title="Actions">
                   <DropdownItem
                     key="logout"
@@ -170,6 +194,55 @@ export const Navbar = ({ username, avatarUrl, onLogout }: NavbarProps) => {
           </NavbarItem>
         )}
       </NavbarContent>
+
+      {/* About Modal */}
+      <Modal isOpen={isOpen} onOpenChange={onOpenChange}>
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader className="flex flex-col gap-1">About</ModalHeader>
+              <ModalBody>
+                <Card className="shadow-none border-none">
+                  <CardHeader className="flex gap-3">
+                    <Image
+                      alt="Application logo"
+                      height={60}
+                      radius="sm"
+                      src="/ifs_logo.png"
+                      width={60}
+                    />
+                    <div className="flex flex-col">
+                      <p className="text-md font-semibold">
+                        GPT-4o Invoice Data Extractor
+                      </p>
+                      <p className="text-small text-default-500">
+                        Version 0.0.4
+                      </p>
+                    </div>
+                  </CardHeader>
+                  <Divider />
+                  <CardBody>
+                    <p className="text-center py-4">
+                      Built with Love 💖 by Basuru Balasuriya
+                    </p>
+                  </CardBody>
+                  <Divider />
+                  <CardFooter className="flex flex-col gap-2">
+                    <p className="text-tiny text-default-400">
+                      © 2025 Basuru Balasuriya. All rights reserved.
+                    </p>
+                  </CardFooter>
+                </Card>
+              </ModalBody>
+              <ModalFooter>
+                <Button color="primary" onPress={onClose}>
+                  Close
+                </Button>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
     </HeroUINavbar>
   );
 };

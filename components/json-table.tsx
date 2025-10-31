@@ -31,7 +31,6 @@ function NestedTable({ data, depth = 0 }: { data: any; depth?: number }) {
       return (
         <div className="my-2">
           <Table
-            isStriped
             removeWrapper
             aria-label="Nested data"
             classNames={{
@@ -91,7 +90,6 @@ function NestedTable({ data, depth = 0 }: { data: any; depth?: number }) {
     return (
       <div className="my-2">
         <Table
-          isStriped
           removeWrapper
           aria-label="Nested object"
           classNames={{
@@ -199,7 +197,6 @@ export function JsonTable({ jsonContent }: JsonTableProps) {
 
   return (
     <Table
-      isStriped
       aria-label="Extracted data table"
       classNames={{
         wrapper: "bg-transparent",
