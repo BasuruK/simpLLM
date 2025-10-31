@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Navbar as HeroUINavbar,
   NavbarContent,
@@ -37,12 +37,34 @@ export const Navbar = ({ username, avatarUrl, onLogout }: NavbarProps) => {
   const { theme, setTheme } = useTheme();
   const [isDeveloperMode, setIsDeveloperMode] = useState(false);
 
+  // Load developer mode from localStorage on mount
+  useEffect(() => {
+    const devOptions = localStorage.getItem("devOptionsEnabled");
+
+    console.log("Navbar - Initial devOptions from localStorage:", devOptions);
+    setIsDeveloperMode(devOptions === "true");
+  }, []);
+
   const toggleTheme = () => {
     setTheme(theme === "light" ? "dark" : "light");
   };
 
   const toggleDeveloperMode = () => {
-    setIsDeveloperMode(!isDeveloperMode);
+    const newValue = !isDeveloperMode;
+
+    console.log("Navbar - Toggling developer mode to:", newValue);
+    setIsDeveloperMode(newValue);
+    localStorage.setItem("devOptionsEnabled", String(newValue));
+    console.log("Navbar - Dispatching devOptionsChanged event");
+    // Dispatch a custom event to notify other components
+    window.dispatchEvent(new CustomEvent("devOptionsChanged", { detail: { enabled: newValue } }));
+    // Also dispatch storage event manually since it doesn't fire in the same tab
+    window.dispatchEvent(new StorageEvent("storage", {
+      key: "devOptionsEnabled",
+      newValue: String(newValue),
+      url: window.location.href,
+      storageArea: localStorage,
+    }));
   };
 
   const iconClasses = "text-xl text-default-500 pointer-events-none shrink-0";

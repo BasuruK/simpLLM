@@ -6,6 +6,15 @@ import { Card } from "@heroui/card";
 import { Image } from "@heroui/image";
 import { Skeleton } from "@heroui/skeleton";
 import { Spinner } from "@heroui/spinner";
+import { Tooltip } from "@heroui/tooltip";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerBody,
+  DrawerFooter,
+} from "@heroui/drawer";
+import { useDisclosure } from "@heroui/modal";
 
 import { extractDataFromFile, ExtractionUsage } from "@/lib/openai";
 import {
@@ -20,6 +29,7 @@ import {
   CacheIcon,
   CheckIcon,
   DollarIcon,
+  ScrewdriverIcon,
 } from "@/components/icons";
 import { CodeEditor } from "@/components/code-editor";
 import { JsonTable } from "@/components/json-table";
@@ -49,9 +59,14 @@ export default function Home() {
   const [hasReceivedData, setHasReceivedData] = useState(false);
   const [extractionUsage, setExtractionUsage] =
     useState<ExtractionUsage | null>(null);
+  const [devOptionsEnabled, setDevOptionsEnabled] = useState(false);
   const hasReceivedDataRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const { isOpen, onOpen, onOpenChange } = useDisclosure();
+
+  // Debug log
+  console.log("Render - devOptionsEnabled:", devOptionsEnabled, "extractionUsage:", !!extractionUsage);
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -132,6 +147,30 @@ export default function Home() {
     };
 
     checkAuth();
+
+    // Check developer options from localStorage
+    const devOptions = localStorage.getItem("devOptionsEnabled");
+
+    console.log("Initial devOptions from localStorage:", devOptions);
+    setDevOptionsEnabled(devOptions === "true");
+
+    // Poll localStorage every 100ms for changes
+    const interval = setInterval(() => {
+      const currentDevOptions = localStorage.getItem("devOptionsEnabled");
+      const isEnabled = currentDevOptions === "true";
+
+      setDevOptionsEnabled((prev) => {
+        if (prev !== isEnabled) {
+          console.log("Polling detected change - new value:", currentDevOptions);
+        }
+
+        return isEnabled;
+      });
+    }, 100);
+
+    return () => {
+      clearInterval(interval);
+    };
   }, []);
 
   const handleLogin = () => {
@@ -265,6 +304,51 @@ export default function Home() {
     }
   };
 
+  // Extract text from system prompt structure
+  const getSystemPromptText = (): string => {
+    if (!extractionUsage?.systemPrompt) {
+      return "No system prompt available";
+    }
+
+    const prompt: any = extractionUsage.systemPrompt;
+
+    // If it's already a string, return it
+    if (typeof prompt === "string") {
+      return prompt;
+    }
+
+    // If it's an array, look for the text in the nested structure
+    if (Array.isArray(prompt)) {
+      for (const item of prompt) {
+        if (item.type === "message" && Array.isArray(item.content)) {
+          for (const contentItem of item.content) {
+            if (contentItem.type === "input_text" && contentItem.text) {
+              return contentItem.text;
+            }
+          }
+        }
+      }
+    }
+
+    // If it's an object with content array
+    if (typeof prompt === "object" && prompt !== null) {
+      if (Array.isArray(prompt.content)) {
+        for (const contentItem of prompt.content) {
+          if (contentItem.type === "input_text" && contentItem.text) {
+            return contentItem.text;
+          }
+        }
+      }
+      // If there's a text property directly
+      if (prompt.text) {
+        return prompt.text;
+      }
+    }
+
+    // Fallback to JSON stringified version
+    return JSON.stringify(prompt, null, 2);
+  };
+
   // Show loading while checking authentication
   if (isCheckingAuth) {
     return (
@@ -323,7 +407,7 @@ export default function Home() {
                       />
                     </div>
                   ) : fileType === "pdf" && pdfUrl ? (
-                    <div className="w-full h-[60vh] border border-default-200 rounded-lg overflow-hidden">
+                    <div className="w-full h-[70vh] border border-default-200 rounded-lg overflow-hidden">
                       <iframe
                         className="w-full h-full"
                         src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=0`}
@@ -377,22 +461,35 @@ export default function Home() {
                   <Card className="p-4 animate-in slide-in-from-right duration-700">
                     <div className="flex items-center justify-between mb-4">
                       <h2 className="text-lg font-semibold">Extracted Data</h2>
-                      <Button
-                        color="primary"
-                        isDisabled={!extractedText}
-                        size="sm"
-                        startContent={
-                          isCopied ? (
-                            <CheckIcon size={18} />
-                          ) : (
-                            <CopyIcon size={18} />
-                          )
-                        }
-                        variant="flat"
-                        onPress={handleCopyText}
-                      >
-                        {isCopied ? "Copied!" : "Copy"}
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        {devOptionsEnabled && extractionUsage && (
+                          <Button
+                            color="warning"
+                            size="sm"
+                            startContent={<ScrewdriverIcon size={18} />}
+                            variant="flat"
+                            onPress={onOpen}
+                          >
+                            Stats
+                          </Button>
+                        )}
+                        <Button
+                          color="primary"
+                          isDisabled={!extractedText}
+                          size="sm"
+                          startContent={
+                            isCopied ? (
+                              <CheckIcon size={18} />
+                            ) : (
+                              <CopyIcon size={18} />
+                            )
+                          }
+                          variant="flat"
+                          onPress={handleCopyText}
+                        >
+                          {isCopied ? "Copied!" : "Copy"}
+                        </Button>
+                      </div>
                     </div>
 
                     {/* Show Skeleton while loading */}
@@ -422,9 +519,9 @@ export default function Home() {
                       </div>
                     ) : extractedText ? (
                       <CodeEditor
-                        minRows={20}
+                        language="json"
+                        minRows={28}
                         value={extractedText}
-                        onChange={setExtractedText}
                       />
                     ) : null}
                   </Card>
@@ -441,50 +538,62 @@ export default function Home() {
                   </h2>
                   {extractionUsage && (
                     <div className="flex items-center gap-4 text-sm text-default-500">
-                      <div className="flex items-center gap-1.5">
-                        <InputTokenIcon size={16} />
-                        <span className="font-medium">
-                          {extractionUsage.inputTokens.toLocaleString()}
-                        </span>
-                        <span className="text-xs">in</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <OutputTokenIcon size={16} />
-                        <span className="font-medium">
-                          {extractionUsage.outputTokens.toLocaleString()}
-                        </span>
-                        <span className="text-xs">out</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <TokenIcon size={16} />
-                        <span className="font-medium">
-                          {extractionUsage.totalTokens.toLocaleString()}
-                        </span>
-                        <span className="text-xs">total</span>
-                      </div>
+                      <Tooltip content="Input Tokens (Prompt/ Recipie + Document).">
+                        <div className="flex items-center gap-1.5 cursor-help">
+                          <InputTokenIcon size={16} />
+                          <span className="font-medium">
+                            {extractionUsage.inputTokens.toLocaleString()}
+                          </span>
+                          <span className="text-xs">in</span>
+                        </div>
+                      </Tooltip>
+                      <Tooltip content="Output Tokens Generated from LLM (extracted data).">
+                        <div className="flex items-center gap-1.5 cursor-help">
+                          <OutputTokenIcon size={16} />
+                          <span className="font-medium">
+                            {extractionUsage.outputTokens.toLocaleString()}
+                          </span>
+                          <span className="text-xs">out</span>
+                        </div>
+                      </Tooltip>
+                      <Tooltip content="Total tokens ( Input + Cached + Output ).">
+                        <div className="flex items-center gap-1.5 cursor-help">
+                          <TokenIcon size={16} />
+                          <span className="font-medium">
+                            {extractionUsage.totalTokens.toLocaleString()}
+                          </span>
+                          <span className="text-xs">total</span>
+                        </div>
+                      </Tooltip>
                       {extractionUsage.cachedTokens &&
                         extractionUsage.cachedTokens > 0 && (
-                          <div className="flex items-center gap-1.5 text-success-500">
-                            <CacheIcon size={16} />
-                            <span className="font-medium">
-                              {extractionUsage.cachedTokens.toLocaleString()}
-                            </span>
-                            <span className="text-xs">cached</span>
-                          </div>
+                          <Tooltip content="Cached tokens. These are reused to reduce costs and improve speed.">
+                            <div className="flex items-center gap-1.5 text-success-500 cursor-help">
+                              <CacheIcon size={16} />
+                              <span className="font-medium">
+                                {extractionUsage.cachedTokens.toLocaleString()}
+                              </span>
+                              <span className="text-xs">cached</span>
+                            </div>
+                          </Tooltip>
                         )}
-                      <div className="flex items-center gap-1.5">
-                        <ClockIcon size={16} />
-                        <span className="font-medium">
-                          {(extractionUsage.durationMs / 1000).toFixed(2)}s
-                        </span>
-                      </div>
-                      {extractionUsage.estimatedCost !== undefined && (
-                        <div className="flex items-center gap-1.5 text-warning-500">
-                          <DollarIcon size={16} />
+                      <Tooltip content="Total time taken for the extraction process.">
+                        <div className="flex items-center gap-1.5 cursor-help">
+                          <ClockIcon size={16} />
                           <span className="font-medium">
-                            ${extractionUsage.estimatedCost.toFixed(6)}
+                            {(extractionUsage.durationMs / 1000).toFixed(2)}s
                           </span>
                         </div>
+                      </Tooltip>
+                      {extractionUsage.estimatedCost !== undefined && (
+                        <Tooltip content="Total cost of the extraction request.(OpenAI GPT-4o pricing)">
+                          <div className="flex items-center gap-1.5 text-warning-500 cursor-help">
+                            <DollarIcon size={16} />
+                            <span className="font-medium">
+                              ${extractionUsage.estimatedCost.toFixed(6)}
+                            </span>
+                          </div>
+                        </Tooltip>
                       )}
                     </div>
                   )}
@@ -539,6 +648,51 @@ export default function Home() {
           </div>
         )}
       </section>
+
+      {/* Recipe/System Prompt Drawer */}
+      <Drawer
+        isOpen={isOpen}
+        size="5xl"
+        motionProps={{
+          variants: {
+            enter: {
+              opacity: 1,
+              x: 0,
+              transition: {
+                duration: 0.3,
+              },
+            },
+            exit: {
+              x: 100,
+              opacity: 0,
+              transition: {
+                duration: 0.3,
+              },
+            },
+          },
+        }}
+        onOpenChange={onOpenChange}
+      >
+        <DrawerContent>
+          {(onClose) => (
+            <>
+              <DrawerHeader className="flex flex-col gap-1">
+                Recipe (System Prompt)
+              </DrawerHeader>
+              <DrawerBody>
+                <div className="whitespace-pre-wrap font-mono text-sm bg-default-100 p-4 rounded-lg max-h-[95vh] overflow-auto">
+                  {getSystemPromptText()}
+                </div>
+              </DrawerBody>
+              <DrawerFooter>
+                <Button color="danger" variant="light" onPress={onClose}>
+                  Close
+                </Button>
+              </DrawerFooter>
+            </>
+          )}
+        </DrawerContent>
+      </Drawer>
     </>
   );
 }

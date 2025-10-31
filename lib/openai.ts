@@ -21,6 +21,7 @@ export interface ExtractionUsage {
   cachedTokens?: number;
   durationMs: number;
   estimatedCost?: number;
+  systemPrompt?: string;
 }
 
 // GPT-4o pricing per 1M tokens (in USD)
@@ -195,6 +196,7 @@ export async function extractDataFromFile(
     let outputTokens = 0;
     let totalTokens = 0;
     let cachedTokens = 0;
+    let systemPrompt = "";
 
     // Batching variables for smoother streaming
     let pendingUpdate = false;
@@ -285,6 +287,11 @@ export async function extractDataFromFile(
                 totalTokens = usage.total_tokens || 0;
                 cachedTokens = usage.input_tokens_details?.cached_tokens || 0;
               }
+
+              // Capture system prompt/recipe from response
+              if (event.response?.instructions) {
+                systemPrompt = event.response.instructions;
+              }
             }
           } catch (parseError) {
             // Skip unparseable lines silently
@@ -360,6 +367,7 @@ export async function extractDataFromFile(
         cachedTokens: cachedTokens > 0 ? cachedTokens : undefined,
         durationMs,
         estimatedCost,
+        systemPrompt: systemPrompt || undefined,
       },
     };
 
