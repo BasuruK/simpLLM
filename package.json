@@ -1,6 +1,6 @@
 {
   "name": "simpllm",
-  "version": "0.0.4",
+  "version": "0.0.4-1",
   "description": "GPT-4o Invoice Data Extractor - Extract structured data from invoices and documents",
   "author": {
     "name": "Basuru Balsuriya",
@@ -21,14 +21,11 @@
     "build:win": "cross-env SHARP_IGNORE_GLOBAL_LIBVIPS=1 next build",
     "start": "next start",
     "lint": "eslint --fix",
-    "postinstall": "node -e \"const fs=require('fs');['sharp-darwin-arm64','sharp-darwin-x64','sharp-libvips-darwin-arm64','sharp-libvips-darwin-x64'].forEach(d=>{try{fs.mkdirSync('node_modules/@img/'+d,{recursive:true})}catch(e){}})\"",
     "electron:dev": "tsc -p electron/tsconfig.json && concurrently \"npm run dev\" \"wait-on http://localhost:3000 && cross-env NODE_ENV=development electron .\"",
     "electron:dev:win": "tsc -p electron/tsconfig.json && concurrently \"npm run dev\" \"wait-on http://localhost:3000 && cross-env NODE_ENV=development electron .\"",
     "electron:start": "tsc -p electron/tsconfig.json && electron .",
     "electron:build:win": "npm run build:win && tsc -p electron/tsconfig.json && electron-builder --win",
-    "electron:build:mac": "npm run build && tsc -p electron/tsconfig.json && electron-builder --mac",
-    "electron:publish:win": "npm run build:win && tsc -p electron/tsconfig.json && electron-builder --win --publish always",
-    "electron:publish:mac": "npm run build && tsc -p electron/tsconfig.json && electron-builder --mac --publish always"
+    "electron:publish:win": "npm run build:win && tsc -p electron/tsconfig.json && electron-builder --win --publish always"
   },
   "dependencies": {
     "@heroui/avatar": "^2.2.22",
@@ -50,7 +47,6 @@
     "@heroui/table": "^2.2.27",
     "@heroui/theme": "2.4.23",
     "@heroui/tooltip": "^2.2.24",
-    "@heroui/user": "^2.2.22",
     "clsx": "2.1.1",
     "crypto-js": "^4.2.0",
     "electron-log": "^5.4.3",

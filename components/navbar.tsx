@@ -91,9 +91,9 @@ export const Navbar = ({ username, avatarUrl, onLogout }: NavbarProps) => {
             <NextImage
               alt="IFS Logo"
               className="shrink-0"
-              height={50}
-              src="/ifs_logo.png"
-              width={50}
+              height={40}
+              src="/ifs_logo_transparent.png"
+              width={40}
             />
             <p className="font-bold text-inherit">
               GPT-4o Invoice Data Extractor
@@ -208,7 +208,7 @@ export const Navbar = ({ username, avatarUrl, onLogout }: NavbarProps) => {
                       alt="Application logo"
                       height={60}
                       radius="sm"
-                      src="/ifs_logo.png"
+                      src="/ifs_logo_transparent.png"
                       width={60}
                     />
                     <div className="flex flex-col">

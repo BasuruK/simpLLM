@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { Card } from "@heroui/card";
 import { Input } from "@heroui/input";
 import { Button } from "@heroui/button";
+import Image from "next/image";
 
 import { saveCredentials, validateEncryptedKey } from "@/lib/secure-storage";
 
@@ -81,20 +82,13 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
       <Card className="w-full max-w-md p-8 shadow-2xl">
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-4">
-            <svg
-              className="w-12 h-12 text-primary"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-              />
-            </svg>
+            <Image
+              alt="IFS Logo"
+              className="shrink-0"
+              height={80}
+              src="/ifs_logo_transparent.png"
+              width={80}
+            />
           </div>
           <h1 className="text-3xl font-bold mb-2">
             GPT-4o Invoice Data Extractor
