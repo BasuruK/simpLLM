@@ -34,6 +34,46 @@ export function UpdateNotification() {
   const [isReadyToInstall, setIsReadyToInstall] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Function to convert HTML to plain text with formatting
+  const formatReleaseNotes = (html: string): string => {
+    if (!html) return "";
+    
+    let text = html
+      // Remove script and style tags
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+      .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "")
+      // Convert headers to bold text with newlines
+      .replace(/<h1[^>]*>(.*?)<\/h1>/gi, "\n\n$1\n")
+      .replace(/<h2[^>]*>(.*?)<\/h2>/gi, "\n\n• $1\n")
+      .replace(/<h3[^>]*>(.*?)<\/h3>/gi, "\n  ◦ $1\n")
+      // Convert list items
+      .replace(/<li[^>]*>(.*?)<\/li>/gi, "  • $1\n")
+      // Convert paragraphs and divs to newlines
+      .replace(/<\/p>/gi, "\n")
+      .replace(/<p[^>]*>/gi, "")
+      .replace(/<\/div>/gi, "\n")
+      .replace(/<div[^>]*>/gi, "")
+      // Convert line breaks
+      .replace(/<br\s*\/?>/gi, "\n")
+      // Handle strong/bold tags
+      .replace(/<strong[^>]*>(.*?)<\/strong>/gi, "$1")
+      // Handle links
+      .replace(/<a[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/gi, "$2 ($1)")
+      // Remove all other HTML tags
+      .replace(/<[^>]+>/g, "")
+      // Decode HTML entities
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&amp;/g, "&")
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      // Clean up multiple newlines
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+    
+    return text;
+  };
+
   useEffect(() => {
     // Check if we're in Electron environment
     if (typeof window === "undefined" || !window.electron?.updater) {
@@ -165,10 +205,8 @@ export function UpdateNotification() {
                     <p>What&apos;s New:</p>
                   </h4>
                   <div className="max-h-60 overflow-y-auto p-3 bg-default-100 dark:bg-default-50/10 rounded-lg">
-                    <div className="text-sm text-default-600 dark:text-default-400 whitespace-pre-wrap">
-                      {typeof updateInfo.releaseNotes === "string"
-                        ? updateInfo.releaseNotes
-                        : updateInfo.releaseNotes}
+                    <div className="text-sm text-default-600 dark:text-default-400 whitespace-pre-wrap font-mono">
+                      {formatReleaseNotes(updateInfo.releaseNotes)}
                     </div>
                   </div>
                 </div>

@@ -41,15 +41,6 @@
     "legalTrademarks": "IFS RnD Finance",
     "requestedExecutionLevel": "asInvoker"
   },
-  "mac": {
-    "target": ["dmg", "zip"],
-    "icon": "build/icon.icns",
-    "category": "public.app-category.productivity",
-    "hardenedRuntime": true,
-    "gatekeeperAssess": false,
-    "entitlements": "build/entitlements.mac.plist",
-    "entitlementsInherit": "build/entitlements.mac.plist"
-  },
   "nsis": {
     "oneClick": true,
     "perMachine": false,

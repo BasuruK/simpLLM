@@ -65,10 +65,7 @@ export default function Home() {
   const [isDragOver, setIsDragOver] = useState(false);
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
 
-  // Debug log
-  console.log("Render - devOptionsEnabled:", devOptionsEnabled, "extractionUsage:", !!extractionUsage);
-
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
 
     if (file) {
@@ -151,7 +148,6 @@ export default function Home() {
     // Check developer options from localStorage
     const devOptions = localStorage.getItem("devOptionsEnabled");
 
-    console.log("Initial devOptions from localStorage:", devOptions);
     setDevOptionsEnabled(devOptions === "true");
 
     // Poll localStorage every 100ms for changes
@@ -659,14 +655,16 @@ export default function Home() {
               opacity: 1,
               x: 0,
               transition: {
-                duration: 0.3,
+                type: "spring",
+                bounce: 0.35,
+                duration: 0.5,
               },
             },
             exit: {
               x: 100,
               opacity: 0,
               transition: {
-                duration: 0.3,
+                duration: 0.2,
               },
             },
           },
