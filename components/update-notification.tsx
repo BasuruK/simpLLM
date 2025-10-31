@@ -37,7 +37,7 @@ export function UpdateNotification() {
   // Function to convert HTML to plain text with formatting
   const formatReleaseNotes = (html: string): string => {
     if (!html) return "";
-    
+
     let text = html
       // Remove script and style tags
       .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
@@ -70,7 +70,7 @@ export function UpdateNotification() {
       // Clean up multiple newlines
       .replace(/\n{3,}/g, "\n\n")
       .trim();
-    
+
     return text;
   };
 
@@ -234,7 +234,9 @@ export function UpdateNotification() {
                         {formatBytes(downloadProgress.transferred)} /{" "}
                         {formatBytes(downloadProgress.total)}
                       </span>
-                      <span>{formatSpeed(downloadProgress.bytesPerSecond)}</span>
+                      <span>
+                        {formatSpeed(downloadProgress.bytesPerSecond)}
+                      </span>
                     </div>
                   )}
                   {(!downloadProgress || downloadProgress.total === 0) && (

@@ -22,7 +22,7 @@
     "start": "next start",
     "lint": "eslint --fix",
     "postinstall": "node -e \"const fs=require('fs');const dirs=['sharp-darwin-arm64','sharp-darwin-x64','sharp-libvips-darwin-arm64','sharp-libvips-darwin-x64','sharp-linux-arm64','sharp-linux-x64','sharp-libvips-linux-arm64','sharp-libvips-linux-x64'].map(d=>'node_modules/@img/'+d);dirs.forEach(d=>{try{fs.mkdirSync(d,{recursive:true});fs.writeFileSync(d+'/package.json','{}')}catch(e){}})\"",
-    "security:check": "pwsh -ExecutionPolicy Bypass -File ./scripts/security-check.ps1",
+  "security:check": "node ./scripts/run-security-check.cjs",
     "security:audit": "npm audit",
     "security:fix": "npm audit fix",
     "electron:dev": "tsc -p electron/tsconfig.json && concurrently \"npm run dev\" \"wait-on http://localhost:3000 && cross-env NODE_ENV=development electron .\"",

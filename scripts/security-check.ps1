@@ -28,13 +28,44 @@ if ($outdatedJson) {
     
     # Create table header
     $tableData = @()
+    $packageJsonPath = Join-Path (Get-Location) "package.json"
+    $dependencies = @()
+    $devDependencies = @()
+    $optionalDependencies = @()
+
+    if (Test-Path $packageJsonPath) {
+        try {
+            $packageJson = Get-Content -Path $packageJsonPath -Raw | ConvertFrom-Json
+            if ($packageJson.dependencies) {
+                $dependencies = $packageJson.dependencies.PSObject.Properties.Name
+            }
+            if ($packageJson.devDependencies) {
+                $devDependencies = $packageJson.devDependencies.PSObject.Properties.Name
+            }
+            if ($packageJson.optionalDependencies) {
+                $optionalDependencies = $packageJson.optionalDependencies.PSObject.Properties.Name
+            }
+        } catch {
+            Write-Host "   ⚠️  Could not parse package.json for dependency types" -ForegroundColor Yellow
+        }
+    }
+
     foreach ($package in $outdatedJson.PSObject.Properties) {
+        $type = "unknown"
+        if ($dependencies -contains $package.Name) {
+            $type = "prod"
+        } elseif ($devDependencies -contains $package.Name) {
+            $type = "dev"
+        } elseif ($optionalDependencies -contains $package.Name) {
+            $type = "optional"
+        }
+
         $tableData += [PSCustomObject]@{
             Package = $package.Name
             Current = $package.Value.current
             Wanted = $package.Value.wanted
             Latest = $package.Value.latest
-            Type = if ($package.Value.location -like "*node_modules*") { "prod" } else { "dev" }
+            Type = $type
         }
     }
     
@@ -70,6 +101,7 @@ Write-Host "   📁 Scanning $totalFiles files..." -ForegroundColor Gray
 foreach ($file in $sourceFiles) {
     $currentFile++
     $relativePath = $file.FullName.Replace((Get-Location).Path, "").TrimStart('\')
+    $fileHasSecret = $false
     
     # Show progress every 10 files or for small sets
     if ($currentFile % 10 -eq 0 -or $totalFiles -lt 50) {
@@ -90,12 +122,16 @@ foreach ($file in $sourceFiles) {
                     Write-Host "         $($match.Line.Trim())" -ForegroundColor Gray
                 }
                 $foundSecrets = $true
-                $errors++
+                $fileHasSecret = $true
             }
         } catch {
             # Skip files that can't be read
             continue
         }
+    }
+
+    if ($fileHasSecret) {
+        $errors++
     }
 }
 

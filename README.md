@@ -65,6 +65,16 @@ You can still run the Next.js app in the browser for development:
 npm run dev
 ```
 
+## Security Checks
+
+Run the pre-release security checklist before shipping builds:
+
+```bash
+npm run security:check
+```
+
+The command is proxied through a small Node wrapper that sets the PowerShell execution policy to `RemoteSigned` for local runs, ensuring only trusted scripts execute. In CI environments (`CI=true`), the wrapper scopes the temporary `Bypass` policy to the spawned process so global machine policies remain intact.
+
 ## Project Structure
 
 ```

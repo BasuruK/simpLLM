@@ -65,7 +65,7 @@ export default function Home() {
   const [isDragOver, setIsDragOver] = useState(false);
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
 
-   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
 
     if (file) {
@@ -133,13 +133,11 @@ export default function Home() {
       const authenticated = isAuthenticated();
 
       setIsLoggedIn(authenticated);
-      if (authenticated) {
-        const user = getUsername();
-        const avatar = getAvatarUrl();
+      const user = authenticated ? getUsername() : null;
+      const avatar = authenticated ? getAvatarUrl() : null;
 
-        setUsername(user);
-        setAvatarUrl(avatar);
-      }
+      setUsername(user);
+      setAvatarUrl(avatar);
       setIsCheckingAuth(false);
     };
 
@@ -157,7 +155,10 @@ export default function Home() {
 
       setDevOptionsEnabled((prev) => {
         if (prev !== isEnabled) {
-          console.log("Polling detected change - new value:", currentDevOptions);
+          console.log(
+            "Polling detected change - new value:",
+            currentDevOptions,
+          );
         }
 
         return isEnabled;
@@ -648,7 +649,6 @@ export default function Home() {
       {/* Recipe/System Prompt Drawer */}
       <Drawer
         isOpen={isOpen}
-        size="5xl"
         motionProps={{
           variants: {
             enter: {
@@ -669,6 +669,7 @@ export default function Home() {
             },
           },
         }}
+        size="5xl"
         onOpenChange={onOpenChange}
       >
         <DrawerContent>
