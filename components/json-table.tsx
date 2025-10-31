@@ -16,22 +16,26 @@ interface JsonTableProps {
 // Component to render nested data as a small table
 function NestedTable({ data, depth = 0 }: { data: any; depth?: number }) {
   // Limit recursion depth to prevent infinite loops
-  const maxDepth = 3;
+  const maxDepth = 5; // Increased from 3 to handle deeper nesting
 
   if (Array.isArray(data)) {
+    // Handle empty arrays
+    if (data.length === 0) {
+      return <span className="text-xs text-default-400">Empty array</span>;
+    }
+
     // Handle arrays of objects
-    if (data.length > 0 && data[0] !== null && typeof data[0] === "object") {
+    if (data[0] !== null && typeof data[0] === "object" && !Array.isArray(data[0])) {
       const keys = Object.keys(data[0]);
 
       return (
         <div className="my-2">
           <Table
-            isStriped
             removeWrapper
             aria-label="Nested data"
             classNames={{
               base: "text-xs",
-              th: "text-xs py-1 px-2",
+              th: "text-xs py-1 px-2 bg-default-200 dark:bg-default-100",
               td: "text-xs py-1 px-2",
             }}
             color="default"
@@ -53,7 +57,7 @@ function NestedTable({ data, depth = 0 }: { data: any; depth?: number }) {
                       depth < maxDepth ? (
                         <NestedTable data={item[key]} depth={depth + 1} />
                       ) : (
-                        String(item[key] ?? "")
+                        <span className="whitespace-pre-wrap">{String(item[key] ?? "")}</span>
                       )}
                     </TableCell>
                   ))}
@@ -64,12 +68,18 @@ function NestedTable({ data, depth = 0 }: { data: any; depth?: number }) {
         </div>
       );
     } else {
-      // Simple array
+      // Simple array (primitives)
       return (
         <div className="my-2">
           <ul className="list-disc list-inside text-xs space-y-1">
             {data.map((item, idx) => (
-              <li key={idx}>{String(item)}</li>
+              <li key={idx}>
+                {typeof item === "object" && item !== null && depth < maxDepth ? (
+                  <NestedTable data={item} depth={depth + 1} />
+                ) : (
+                  String(item)
+                )}
+              </li>
             ))}
           </ul>
         </div>
@@ -80,24 +90,23 @@ function NestedTable({ data, depth = 0 }: { data: any; depth?: number }) {
     return (
       <div className="my-2">
         <Table
-          isStriped
           removeWrapper
           aria-label="Nested object"
           classNames={{
             base: "text-xs",
-            th: "text-xs py-1 px-2",
+            th: "text-xs py-1 px-2 bg-default-200 dark:bg-default-100",
             td: "text-xs py-1 px-2",
           }}
           color="default"
         >
           <TableHeader>
-            <TableColumn>SECTION</TableColumn>
-            <TableColumn>DATA</TableColumn>
+            <TableColumn>FIELD</TableColumn>
+            <TableColumn>VALUE</TableColumn>
           </TableHeader>
           <TableBody>
             {Object.entries(data).map(([key, value]) => (
               <TableRow key={key}>
-                <TableCell className="font-semibold align-top">
+                <TableCell className="font-semibold align-top w-1/3">
                   {key.replace(/_/g, " ")}
                 </TableCell>
                 <TableCell className="align-top">
@@ -106,7 +115,7 @@ function NestedTable({ data, depth = 0 }: { data: any; depth?: number }) {
                   depth < maxDepth ? (
                     <NestedTable data={value} depth={depth + 1} />
                   ) : (
-                    String(value ?? "")
+                    <span className="whitespace-pre-wrap">{String(value ?? "")}</span>
                   )}
                 </TableCell>
               </TableRow>
@@ -117,7 +126,7 @@ function NestedTable({ data, depth = 0 }: { data: any; depth?: number }) {
     );
   }
 
-  return <span>{String(data)}</span>;
+  return <span className="whitespace-pre-wrap">{String(data)}</span>;
 }
 
 export function JsonTable({ jsonContent }: JsonTableProps) {
@@ -188,7 +197,6 @@ export function JsonTable({ jsonContent }: JsonTableProps) {
 
   return (
     <Table
-      isStriped
       aria-label="Extracted data table"
       classNames={{
         wrapper: "bg-transparent",
