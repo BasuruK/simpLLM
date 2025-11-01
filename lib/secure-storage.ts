@@ -168,7 +168,25 @@ export function clearCredentials(): void {
  * Check if user is authenticated
  */
 export function isAuthenticated(): boolean {
-  return loadCredentials() !== null;
+  const credentials = loadCredentials();
+
+  if (!credentials?.encryptedApiKey) {
+    return false;
+  }
+
+  if (cachedDecryptedKey) {
+    return true;
+  }
+
+  try {
+    cachedDecryptedKey = decryptApiKey(credentials.encryptedApiKey);
+
+    return true;
+  } catch {
+    clearCredentials();
+
+    return false;
+  }
 }
 
 /**
