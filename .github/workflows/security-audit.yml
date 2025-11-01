@@ -50,8 +50,14 @@ jobs:
           
       - name: Check for critical vulnerabilities
         run: |
-          $auditResult = npm audit --audit-level=critical
-          if ($LASTEXITCODE -ne 0) {
-            Write-Host "::error::Critical vulnerabilities found! Check the audit report."
-            exit 1
+          node - <<'NODE'
+          const { spawnSync } = require('node:child_process');
+          const result = spawnSync('npm', ['audit', '--audit-level=critical'], {
+            stdio: 'inherit',
+            shell: process.platform === 'win32',
+          });
+          if (result.status !== 0) {
+            console.error('::error::Critical vulnerabilities found! Check the audit report.');
+            process.exit(1);
           }
+          NODE
