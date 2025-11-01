@@ -21,10 +21,26 @@ Write-Host ""
 
 # 2. Check for outdated packages
 Write-Host "2️⃣  Checking for outdated packages..." -ForegroundColor Yellow
-$outdatedJson = npm outdated --json 2>&1 | ConvertFrom-Json
-if ($outdatedJson) {
-    Write-Host "   ⚠️  Some packages are outdated:" -ForegroundColor Yellow
-    Write-Host ""
+$outdatedStdout = (npm outdated --json) 2>$null
+$outdatedStderr = $error[0]
+$error.Clear()
+
+if ($outdatedStderr) {
+    Write-Host "   ❌ Failed to check outdated packages:" -ForegroundColor Red
+    Write-Host "   $outdatedStderr" -ForegroundColor Yellow
+    $errors++
+} elseif (-not [string]::IsNullOrWhiteSpace($outdatedStdout)) {
+    $outdatedJson = $null
+    try {
+        $outdatedJson = $outdatedStdout | ConvertFrom-Json
+    } catch {
+        Write-Host "   ❌ Unable to parse npm outdated output" -ForegroundColor Red
+        $errors++
+    }
+
+    if ($outdatedJson) {
+        Write-Host "   ⚠️  Some packages are outdated:" -ForegroundColor Yellow
+        Write-Host ""
     
     # Create table header
     $tableData = @()
@@ -69,8 +85,11 @@ if ($outdatedJson) {
         }
     }
     
-    $tableData | Format-Table -AutoSize | Out-String | ForEach-Object { Write-Host "   $_" }
-    Write-Host "   💡 Run: npm update" -ForegroundColor Cyan
+        $tableData | Format-Table -AutoSize | Out-String | ForEach-Object { Write-Host "   $_" }
+        Write-Host "   💡 Run: npm update" -ForegroundColor Cyan
+    } else {
+        Write-Host "   ✅ All packages up to date" -ForegroundColor Green
+    }
 } else {
     Write-Host "   ✅ All packages up to date" -ForegroundColor Green
 }
