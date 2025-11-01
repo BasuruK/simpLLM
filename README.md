@@ -1,6 +1,6 @@
-# simpLLM
+# Simple Invocie Data Extractor
 
-simpLLM delivers a focused desktop workflow for turning invoices into structured data with the help of large language models.
+Simple Invocie Data Extractor delivers a focused desktop workflow for turning invoices into structured data with the help of large language models.
 
 ## Tech Stack
 
