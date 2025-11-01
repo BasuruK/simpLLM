@@ -52,11 +52,6 @@ function createWindow() {
     mainWindow.loadURL("http://localhost:3000");
     // Open DevTools in development
     mainWindow.webContents.openDevTools({ mode: "detach" });
-    mainWindow.webContents.on("console-message", (_event, _level, message) => {
-      if (typeof message === "string" && message.includes("Autofill")) {
-        _event.preventDefault?.();
-      }
-    });
   } else {
     // electron-serve will handle all the path resolution
     loadURL(mainWindow);
