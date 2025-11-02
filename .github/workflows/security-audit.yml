@@ -31,8 +31,7 @@ jobs:
         run: npm ci
         
       - name: Run npm audit
-        run: npm audit --audit-level=moderate
-        continue-on-error: true
+        run: npm audit --audit-level=high
         
       - name: Run npm audit (JSON output)
         id: audit
@@ -48,16 +47,16 @@ jobs:
           path: audit-report.json
           retention-days: 30
           
-      - name: Check for critical vulnerabilities
+      - name: Check for high vulnerabilities
         run: |
           node - <<'NODE'
           const { spawnSync } = require('node:child_process');
-          const result = spawnSync('npm', ['audit', '--audit-level=critical'], {
+          const result = spawnSync('npm', ['audit', '--audit-level=high'], {
             stdio: 'inherit',
             shell: process.platform === 'win32',
           });
           if (result.status !== 0) {
-            console.error('::error::Critical vulnerabilities found! Check the audit report.');
+            console.error('::error::High vulnerabilities found! Check the audit report.');
             process.exit(1);
           }
           NODE

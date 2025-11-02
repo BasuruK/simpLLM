@@ -1,6 +1,6 @@
-# Simple Invocie Data Extractor
+# Simple Invoice Data Extractor
 
-Simple Invocie Data Extractor delivers a focused desktop workflow for turning invoices into structured data with the help of large language models.
+Simple Invoice Data Extractor delivers a focused desktop workflow for turning invoices into structured data with the help of large language models.
 
 ## Tech Stack
 
