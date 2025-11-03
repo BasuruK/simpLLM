@@ -62,10 +62,9 @@ export default function Home() {
   const [devOptionsEnabled, setDevOptionsEnabled] = useState(false);
   const hasReceivedDataRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isDragOver, setIsDragOver] = useState(false);
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
 
-   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
 
     if (file) {
@@ -97,19 +96,16 @@ export default function Home() {
   const handleDragOver = (e: React.DragEvent<HTMLElement>) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsDragOver(true);
   };
 
   const handleDragLeave = (e: React.DragEvent<HTMLElement>) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsDragOver(false);
   };
 
   const handleDrop = (e: React.DragEvent<HTMLElement>) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsDragOver(false);
 
     const files = e.dataTransfer.files;
 
@@ -133,39 +129,42 @@ export default function Home() {
       const authenticated = isAuthenticated();
 
       setIsLoggedIn(authenticated);
-      if (authenticated) {
-        const user = getUsername();
-        const avatar = getAvatarUrl();
+      const user = authenticated ? getUsername() : null;
+      const avatar = authenticated ? getAvatarUrl() : null;
 
-        setUsername(user);
-        setAvatarUrl(avatar);
-      }
+      setUsername(user);
+      setAvatarUrl(avatar);
       setIsCheckingAuth(false);
     };
 
     checkAuth();
 
-    // Check developer options from localStorage
-    const devOptions = localStorage.getItem("devOptionsEnabled");
+    const updateDevOptions = (value: string | null) => {
+      setDevOptionsEnabled(value === "true");
+    };
 
-    setDevOptionsEnabled(devOptions === "true");
+    const handleDevOptionsChanged = (event: Event) => {
+      if (
+        event instanceof CustomEvent &&
+        typeof event.detail?.enabled === "boolean"
+      ) {
+        setDevOptionsEnabled(event.detail.enabled);
+      }
+    };
 
-    // Poll localStorage every 100ms for changes
-    const interval = setInterval(() => {
-      const currentDevOptions = localStorage.getItem("devOptionsEnabled");
-      const isEnabled = currentDevOptions === "true";
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === "devOptionsEnabled") {
+        updateDevOptions(event.newValue);
+      }
+    };
 
-      setDevOptionsEnabled((prev) => {
-        if (prev !== isEnabled) {
-          console.log("Polling detected change - new value:", currentDevOptions);
-        }
-
-        return isEnabled;
-      });
-    }, 100);
+    updateDevOptions(localStorage.getItem("devOptionsEnabled"));
+    window.addEventListener("devOptionsChanged", handleDevOptionsChanged);
+    window.addEventListener("storage", handleStorageChange);
 
     return () => {
-      clearInterval(interval);
+      window.removeEventListener("devOptionsChanged", handleDevOptionsChanged);
+      window.removeEventListener("storage", handleStorageChange);
     };
   }, []);
 
@@ -202,7 +201,7 @@ export default function Home() {
           const parsed = JSON.parse(extractedText);
 
           setJsonContent(JSON.stringify(parsed, null, 2));
-        } catch (e) {
+        } catch {
           // If not valid JSON, set empty
           setJsonContent("");
         }
@@ -295,7 +294,7 @@ export default function Home() {
       await navigator.clipboard.writeText(extractedText);
       setIsCopied(true);
       setTimeout(() => setIsCopied(false), 2000); // Reset after 2 seconds
-    } catch (error) {
+    } catch {
       // Silently fail - clipboard errors are not critical
     }
   };
@@ -648,7 +647,6 @@ export default function Home() {
       {/* Recipe/System Prompt Drawer */}
       <Drawer
         isOpen={isOpen}
-        size="5xl"
         motionProps={{
           variants: {
             enter: {
@@ -669,6 +667,7 @@ export default function Home() {
             },
           },
         }}
+        size="5xl"
         onOpenChange={onOpenChange}
       >
         <DrawerContent>

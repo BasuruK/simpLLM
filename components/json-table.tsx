@@ -25,7 +25,11 @@ function NestedTable({ data, depth = 0 }: { data: any; depth?: number }) {
     }
 
     // Handle arrays of objects
-    if (data[0] !== null && typeof data[0] === "object" && !Array.isArray(data[0])) {
+    if (
+      data[0] !== null &&
+      typeof data[0] === "object" &&
+      !Array.isArray(data[0])
+    ) {
       const keys = Object.keys(data[0]);
 
       return (
@@ -57,7 +61,9 @@ function NestedTable({ data, depth = 0 }: { data: any; depth?: number }) {
                       depth < maxDepth ? (
                         <NestedTable data={item[key]} depth={depth + 1} />
                       ) : (
-                        <span className="whitespace-pre-wrap">{String(item[key] ?? "")}</span>
+                        <span className="whitespace-pre-wrap">
+                          {String(item[key] ?? "")}
+                        </span>
                       )}
                     </TableCell>
                   ))}
@@ -74,7 +80,9 @@ function NestedTable({ data, depth = 0 }: { data: any; depth?: number }) {
           <ul className="list-disc list-inside text-xs space-y-1">
             {data.map((item, idx) => (
               <li key={idx}>
-                {typeof item === "object" && item !== null && depth < maxDepth ? (
+                {typeof item === "object" &&
+                item !== null &&
+                depth < maxDepth ? (
                   <NestedTable data={item} depth={depth + 1} />
                 ) : (
                   String(item)
@@ -115,7 +123,9 @@ function NestedTable({ data, depth = 0 }: { data: any; depth?: number }) {
                   depth < maxDepth ? (
                     <NestedTable data={value} depth={depth + 1} />
                   ) : (
-                    <span className="whitespace-pre-wrap">{String(value ?? "")}</span>
+                    <span className="whitespace-pre-wrap">
+                      {String(value ?? "")}
+                    </span>
                   )}
                 </TableCell>
               </TableRow>

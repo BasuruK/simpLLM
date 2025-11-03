@@ -18,6 +18,12 @@ const loadURL = serve({ directory: "out" });
 // Check if running in development mode
 const isDev = process.env.NODE_ENV === "development";
 
+// Disable Autofill features to avoid unsupported DevTools commands noise in Electron
+app.commandLine.appendSwitch(
+  "disable-features",
+  "AutofillServerCommunication,AutofillAssistantChromeIntegration",
+);
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
@@ -45,7 +51,7 @@ function createWindow() {
   if (isDev) {
     mainWindow.loadURL("http://localhost:3000");
     // Open DevTools in development
-    mainWindow.webContents.openDevTools();
+    mainWindow.webContents.openDevTools({ mode: "detach" });
   } else {
     // electron-serve will handle all the path resolution
     loadURL(mainWindow);
