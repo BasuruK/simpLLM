@@ -1,5 +1,6 @@
 # Dependabot configuration for automated security monitoring
-# This will check for vulnerabilities and outdated dependencies
+# Security alerts will appear in the Security tab
+# PR creation is disabled - you can manually update dependencies
 
 version: 2
 updates:
@@ -10,43 +11,13 @@ updates:
       interval: "weekly"
       day: "monday"
       time: "09:00"
-    # Automatically create PRs for security updates
-    open-pull-requests-limit: 10
-    # Group minor and patch updates together
-    groups:
-      development-dependencies:
-        dependency-type: "development"
-        update-types:
-          - "minor"
-          - "patch"
-      production-dependencies:
-        dependency-type: "production"
-        update-types:
-          - "patch"
-    # Security updates always get individual PRs
-    allow:
-      - dependency-type: "all"
-    # Commit message prefix
-    commit-message:
-      prefix: "deps"
-      prefix-development: "deps-dev"
-      include: "scope"
-    # Labels for PRs
-    labels:
-      - "dependencies"
-      - "automated"
-    # Reviewers (optional - add your GitHub username)
-    reviewers:
-      - "BasuruK"
-    # Auto-merge security patches (optional - enable if you trust it)
-    # For now, keeping it manual for safety
-    # Note: Requires GitHub Pro or branch protection rules
+    # Disable automatic PR creation (set to 0)
+    # You'll still get security alerts in the Security tab
+    open-pull-requests-limit: 0
     
-  # Monitor GitHub Actions (if you add any CI/CD workflows)
+  # Monitor GitHub Actions (disabled PR creation)
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
-    labels:
-      - "github-actions"
-      - "automated"
+    open-pull-requests-limit: 0
