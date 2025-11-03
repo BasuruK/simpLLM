@@ -35,6 +35,7 @@ jobs:
         
       - name: Run npm audit (JSON output)
         id: audit
+        if: always()
         run: |
           npm audit --json > audit-report.json
           exit 0
