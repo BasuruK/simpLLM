@@ -152,6 +152,7 @@ export async function extractDataFromFile(
           content: [contentItem],
         },
       ],
+      store: false,
     };
 
     const response = await fetch("https://api.openai.com/v1/responses", {
@@ -201,7 +202,7 @@ export async function extractDataFromFile(
     // Batching variables for smoother streaming
     let pendingUpdate = false;
     let updateScheduled = false;
-    const BATCH_DELAY_MS = 20; // Update UI every 20ms for smooth streaming
+    const BATCH_DELAY_MS = 5; // Update UI every 5ms for smooth streaming
 
     const flushUpdate = () => {
       if (onStream && pendingUpdate) {
