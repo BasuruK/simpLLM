@@ -152,8 +152,7 @@ export async function extractDataFromFile(
           content: [contentItem],
         },
       ],
-      store: true,
-      include: ["web_search_call.action.sources"],
+      store: false,
     };
 
     const response = await fetch("https://api.openai.com/v1/responses", {
