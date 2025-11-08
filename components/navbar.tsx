@@ -38,15 +38,24 @@ import {
   LogoutIcon,
   SettingsIcon,
   InfoIcon,
+  HistoryIcon,
 } from "@/components/icons";
 
 interface NavbarProps {
   username?: string | null;
   avatarUrl?: string | null;
   onLogout?: () => void;
+  onHistoryClick?: () => void;
+  historyCount?: number;
 }
 
-export const Navbar = ({ username, avatarUrl, onLogout }: NavbarProps) => {
+export const Navbar = ({
+  username,
+  avatarUrl,
+  onLogout,
+  onHistoryClick,
+  historyCount = 0,
+}: NavbarProps) => {
   const { theme, setTheme } = useTheme();
   const [isDeveloperMode, setIsDeveloperMode] = useState(false);
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
@@ -105,94 +114,114 @@ export const Navbar = ({ username, avatarUrl, onLogout }: NavbarProps) => {
 
       <NavbarContent justify="end">
         {username && (
-          <NavbarItem>
-            <Dropdown placement="bottom-end">
-              <DropdownTrigger>
-                <button className="flex items-center gap-3 bg-transparent outline-none transition-transform cursor-pointer">
-                  <Badge
-                    color="warning"
-                    content="DEV"
-                    isInvisible={!isDeveloperMode}
-                    placement="bottom-right"
-                    size="sm"
-                  >
-                    <Avatar
-                      className="transition-transform"
-                      color={isDeveloperMode ? "warning" : "default"}
-                      isBordered={isDeveloperMode}
-                      name={username || undefined}
-                      src={avatarUrl || undefined}
-                    />
-                  </Badge>
-                  <span className="font-bold text-inherit">{username}</span>
-                </button>
-              </DropdownTrigger>
-              <DropdownMenu aria-label="User Actions" variant="faded">
-                <DropdownSection showDivider title="Settings">
-                  <DropdownItem
-                    key="theme"
-                    description="Toggle between light and dark mode"
-                    startContent={
-                      theme === "light" ? (
-                        <MoonFilledIcon className={iconClasses} />
-                      ) : (
-                        <SunFilledIcon className={iconClasses} />
-                      )
-                    }
-                    onPress={toggleTheme}
-                  >
-                    {theme === "light" ? "Dark Mode" : "Light Mode"}
-                  </DropdownItem>
-                  <DropdownItem
-                    key="developer"
-                    className={isDeveloperMode ? "text-warning" : ""}
-                    color={isDeveloperMode ? "warning" : "default"}
-                    description={
-                      isDeveloperMode
-                        ? "Disable developer options"
-                        : "Enable developer options"
-                    }
-                    startContent={
-                      <SettingsIcon
-                        className={
-                          isDeveloperMode
-                            ? "text-xl text-warning pointer-events-none shrink-0"
-                            : iconClasses
-                        }
+          <>
+            <NavbarItem>
+              <Button
+                isIconOnly
+                aria-label="History"
+                size="lg"
+                variant="light"
+                onPress={onHistoryClick}
+              >
+                <Badge
+                  color="primary"
+                  content={historyCount}
+                  isInvisible={historyCount === 0}
+                  shape="circle"
+                >
+                  <HistoryIcon size={30} />
+                </Badge>
+              </Button>
+            </NavbarItem>
+            <NavbarItem>
+              <Dropdown placement="bottom-end">
+                <DropdownTrigger>
+                  <button className="flex items-center gap-3 bg-transparent outline-none transition-transform cursor-pointer">
+                    <Badge
+                      color="warning"
+                      content="DEV"
+                      isInvisible={!isDeveloperMode}
+                      placement="bottom-right"
+                      size="sm"
+                    >
+                      <Avatar
+                        className="transition-transform"
+                        color={isDeveloperMode ? "warning" : "default"}
+                        isBordered={isDeveloperMode}
+                        name={username || undefined}
+                        src={avatarUrl || undefined}
                       />
-                    }
-                    onPress={toggleDeveloperMode}
-                  >
-                    Developer Options
-                  </DropdownItem>
-                </DropdownSection>
-                <DropdownSection showDivider title="Information">
-                  <DropdownItem
-                    key="about"
-                    description="About this application"
-                    startContent={<InfoIcon className={iconClasses} />}
-                    onPress={onOpen}
-                  >
-                    About
-                  </DropdownItem>
-                </DropdownSection>
-                <DropdownSection title="Actions">
-                  <DropdownItem
-                    key="logout"
-                    className="text-danger"
-                    color="danger"
-                    description="Sign out of your account"
-                    startContent={
-                      <LogoutIcon className="text-xl text-danger pointer-events-none shrink-0" />
-                    }
-                    onPress={onLogout}
-                  >
-                    Log Out
-                  </DropdownItem>
-                </DropdownSection>
-              </DropdownMenu>
-            </Dropdown>
-          </NavbarItem>
+                    </Badge>
+                    <span className="font-bold text-inherit">{username}</span>
+                  </button>
+                </DropdownTrigger>
+                <DropdownMenu aria-label="User Actions" variant="faded">
+                  <DropdownSection showDivider title="Settings">
+                    <DropdownItem
+                      key="theme"
+                      description="Toggle between light and dark mode"
+                      startContent={
+                        theme === "light" ? (
+                          <MoonFilledIcon className={iconClasses} />
+                        ) : (
+                          <SunFilledIcon className={iconClasses} />
+                        )
+                      }
+                      onPress={toggleTheme}
+                    >
+                      {theme === "light" ? "Dark Mode" : "Light Mode"}
+                    </DropdownItem>
+                    <DropdownItem
+                      key="developer"
+                      className={isDeveloperMode ? "text-warning" : ""}
+                      color={isDeveloperMode ? "warning" : "default"}
+                      description={
+                        isDeveloperMode
+                          ? "Disable developer options"
+                          : "Enable developer options"
+                      }
+                      startContent={
+                        <SettingsIcon
+                          className={
+                            isDeveloperMode
+                              ? "text-xl text-warning pointer-events-none shrink-0"
+                              : iconClasses
+                          }
+                        />
+                      }
+                      onPress={toggleDeveloperMode}
+                    >
+                      Developer Options
+                    </DropdownItem>
+                  </DropdownSection>
+                  <DropdownSection showDivider title="Information">
+                    <DropdownItem
+                      key="about"
+                      description="About this application"
+                      startContent={<InfoIcon className={iconClasses} />}
+                      onPress={onOpen}
+                    >
+                      About
+                    </DropdownItem>
+                  </DropdownSection>
+                  <DropdownSection title="Actions">
+                    <DropdownItem
+                      key="logout"
+                      className="text-danger"
+                      color="danger"
+                      description="Sign out of your account"
+                      startContent={
+                        <LogoutIcon className="text-xl text-danger pointer-events-none shrink-0" />
+                      }
+                      onPress={onLogout}
+                    >
+                      Log Out
+                    </DropdownItem>
+                  </DropdownSection>
+                </DropdownMenu>
+              </Dropdown>
+            </NavbarItem>
+          </>
         )}
       </NavbarContent>
 

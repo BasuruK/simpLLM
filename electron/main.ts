@@ -41,6 +41,34 @@ function createWindow() {
     show: false,
   });
 
+  // Set Content Security Policy
+  mainWindow.webContents.session.webRequest.onHeadersReceived(
+    (details, callback) => {
+      callback({
+        responseHeaders: {
+          ...details.responseHeaders,
+          "Content-Security-Policy": [
+            isDev
+              ? // Development: Allow Next.js dev server and hot reload
+                "default-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:* ws://localhost:* data: blob:; " +
+                "script-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:*; " +
+                "style-src 'self' 'unsafe-inline' http://localhost:*; " +
+                "img-src 'self' data: blob: http://localhost:*; " +
+                "font-src 'self' data:; " +
+                "connect-src 'self' http://localhost:* ws://localhost:* https://api.openai.com;"
+              : // Production: Strict CSP
+                "default-src 'self'; " +
+                "script-src 'self'; " +
+                "style-src 'self' 'unsafe-inline'; " +
+                "img-src 'self' data: blob:; " +
+                "font-src 'self' data:; " +
+                "connect-src 'self' https://api.openai.com;",
+          ],
+        },
+      });
+    },
+  );
+
   // Remove menu bar in production
   if (!isDev) {
     Menu.setApplicationMenu(null);

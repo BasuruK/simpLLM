@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import {
   Table,
   TableHeader,
@@ -140,8 +141,12 @@ function NestedTable({ data, depth = 0 }: { data: any; depth?: number }) {
 }
 
 export function JsonTable({ jsonContent }: JsonTableProps) {
-  // Parse the JSON content
-  const parseJsonData = () => {
+  const [selectedKeys, setSelectedKeys] = React.useState<Set<string>>(
+    new Set([]),
+  );
+
+  // Parse the JSON content using useMemo to avoid re-renders
+  const { rows, parseError } = React.useMemo(() => {
     try {
       const data = JSON.parse(jsonContent);
 
@@ -187,15 +192,28 @@ export function JsonTable({ jsonContent }: JsonTableProps) {
 
       flattenObject(data);
 
-      return rows;
-    } catch (error) {
-      console.error("Failed to parse JSON:", error);
+      return { rows, parseError: null };
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : "Unknown parsing error";
 
-      return [];
+      // Log the error for debugging
+      // eslint-disable-next-line no-console
+      console.error("Failed to parse JSON content:", errorMessage, err);
+
+      return { rows: [], parseError: errorMessage };
     }
-  };
+  }, [jsonContent]);
 
-  const rows = parseJsonData();
+  // Show error message if parsing failed
+  if (parseError) {
+    return (
+      <div className="text-center text-danger py-8">
+        <p className="font-semibold">Failed to parse JSON data</p>
+        <p className="text-sm mt-2">{parseError}</p>
+      </div>
+    );
+  }
 
   if (rows.length === 0) {
     return (
@@ -213,7 +231,10 @@ export function JsonTable({ jsonContent }: JsonTableProps) {
         th: "text-sm",
         td: "",
       }}
-      color="default"
+      color="primary"
+      selectedKeys={selectedKeys}
+      selectionMode="single"
+      onSelectionChange={(keys) => setSelectedKeys(keys as Set<string>)}
     >
       <TableHeader>
         <TableColumn>INVOICE SECTION</TableColumn>
