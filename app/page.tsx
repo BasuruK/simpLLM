@@ -42,6 +42,7 @@ import {
   StarIcon,
   SaveIcon,
   DocumentIcon,
+  BackIcon,
 } from "@/components/icons";
 import { CodeEditor } from "@/components/code-editor";
 import { JsonTable } from "@/components/json-table";
@@ -370,6 +371,11 @@ export default function Home() {
       // Clear all from localStorage
       clearAllHistory();
 
+      // Revoke the PDF URL to free memory before resetting
+      if (pdfUrl) {
+        URL.revokeObjectURL(pdfUrl);
+      }
+
       // Reset state
       setHistoryItems([]);
       setCurrentHistoryId(null);
@@ -673,12 +679,18 @@ export default function Home() {
                         </Button>
                       )}
                       <Button
-                        color="danger"
-                        startContent={<TrashIcon size={18} />}
+                        color={currentHistoryId ? "default" : "danger"}
+                        startContent={
+                          currentHistoryId ? (
+                            <BackIcon size={18} />
+                          ) : (
+                            <TrashIcon size={18} />
+                          )
+                        }
                         variant="flat"
                         onPress={handleClearImage}
                       >
-                        Remove
+                        {currentHistoryId ? "Back" : "Remove"}
                       </Button>
                     </div>
                   </div>

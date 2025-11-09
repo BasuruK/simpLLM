@@ -53,19 +53,42 @@ function createWindow() {
                 "default-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:* ws://localhost:* data: blob:; " +
                 "script-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:*; " +
                 "style-src 'self' 'unsafe-inline' http://localhost:*; " +
-                "img-src 'self' data: blob: http://localhost:*; " +
+                "img-src 'self' data: blob: http://localhost:* https://robohash.org; " +
                 "font-src 'self' data:; " +
                 "connect-src 'self' http://localhost:* ws://localhost:* https://api.openai.com;"
               : // Production: Strict CSP
                 "default-src 'self'; " +
                 "script-src 'self'; " +
                 "style-src 'self' 'unsafe-inline'; " +
-                "img-src 'self' data: blob:; " +
+                "img-src 'self' data: blob: https://robohash.org; " +
                 "font-src 'self' data:; " +
                 "connect-src 'self' https://api.openai.com;",
           ],
         },
       });
+    },
+  );
+
+  // Bypass CORS for OpenAI API (Electron desktop app only)
+  mainWindow.webContents.session.webRequest.onHeadersReceived(
+    { urls: ["https://api.openai.com/*"] },
+    (details, callback) => {
+      const responseHeaders = { ...details.responseHeaders };
+
+      // Delete existing CORS headers to prevent duplicates
+      delete responseHeaders["access-control-allow-origin"];
+      delete responseHeaders["access-control-allow-methods"];
+      delete responseHeaders["access-control-allow-headers"];
+      delete responseHeaders["access-control-allow-credentials"];
+
+      // Set new CORS headers
+      responseHeaders["Access-Control-Allow-Origin"] = ["*"];
+      responseHeaders["Access-Control-Allow-Methods"] = [
+        "GET, POST, PUT, DELETE, OPTIONS",
+      ];
+      responseHeaders["Access-Control-Allow-Headers"] = ["*"];
+
+      callback({ responseHeaders });
     },
   );
 

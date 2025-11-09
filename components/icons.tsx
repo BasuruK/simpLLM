@@ -755,3 +755,36 @@ export const DocumentIcon: React.FC<IconSvgProps> = ({
     />
   </svg>
 );
+
+export const BackIcon: React.FC<IconSvgProps> = ({
+  size = 20,
+  width,
+  height,
+  ...props
+}) => (
+  <svg
+    fill="none"
+    height={size || height}
+    viewBox="0 0 24 24"
+    width={size || width}
+    xmlns="http://www.w3.org/2000/svg"
+    {...props}
+  >
+    <path
+      d="M9.57 5.92993L3.5 11.9999L9.57 18.0699"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeMiterlimit="10"
+      strokeWidth="1.5"
+    />
+    <path
+      d="M20.5 12H3.67"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeMiterlimit="10"
+      strokeWidth="1.5"
+    />
+  </svg>
+);

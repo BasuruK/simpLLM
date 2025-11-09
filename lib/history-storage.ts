@@ -2,25 +2,7 @@
  * Local storage utility for managing extraction history
  */
 
-export interface HistoryItem {
-  id: string;
-  timestamp: number;
-  filename: string;
-  fileType: string;
-  fileSize: number;
-  extractedData: string;
-  jsonContent: unknown;
-  usage: {
-    inputTokens: number;
-    outputTokens: number;
-    totalTokens: number;
-    cachedTokens?: number;
-    durationMs: number;
-    estimatedCost?: number;
-  };
-  starred: boolean;
-  preview?: string; // base64 image preview for thumbnails
-}
+import { HistoryItem } from "@/types";
 
 const STORAGE_KEY = "simpllm_extraction_history";
 const MAX_HISTORY_ITEMS = 100; // Limit to prevent localStorage overflow
