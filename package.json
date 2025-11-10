@@ -1,6 +1,6 @@
 {
   "name": "simpllm",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "GPT-4o Invoice Data Extractor - Extract structured data from invoices and documents",
   "author": {
     "name": "Basuru Balsuriya",
@@ -22,7 +22,7 @@
     "start": "next start",
     "lint": "eslint --fix",
     "postinstall": "node -e \"const fs=require('fs');const dirs=['sharp-darwin-arm64','sharp-darwin-x64','sharp-libvips-darwin-arm64','sharp-libvips-darwin-x64','sharp-linux-arm64','sharp-linux-x64','sharp-libvips-linux-arm64','sharp-libvips-linux-x64'].map(d=>'node_modules/@img/'+d);dirs.forEach(d=>{try{fs.mkdirSync(d,{recursive:true});fs.writeFileSync(d+'/package.json','{}')}catch(e){}})\"",
-  "security:check": "node ./scripts/run-security-check.cjs",
+    "security:check": "node ./scripts/run-security-check.cjs",
     "security:audit": "npm audit",
     "security:fix": "npm audit fix",
     "electron:dev": "tsc -p electron/tsconfig.json && concurrently \"npm run dev\" \"wait-on http://localhost:3000 && cross-env NODE_ENV=development electron .\"",
@@ -32,6 +32,7 @@
     "electron:publish:win": "npm run build:win && tsc -p electron/tsconfig.json && electron-builder --win --publish always"
   },
   "dependencies": {
+    "@heroui/alert": "^2.2.27",
     "@heroui/avatar": "^2.2.22",
     "@heroui/badge": "^2.2.17",
     "@heroui/button": "2.2.27",

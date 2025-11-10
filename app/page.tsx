@@ -7,6 +7,7 @@ import { Image } from "@heroui/image";
 import { Skeleton } from "@heroui/skeleton";
 import { Spinner } from "@heroui/spinner";
 import { Tooltip } from "@heroui/tooltip";
+import { Alert } from "@heroui/alert";
 import {
   Drawer,
   DrawerContent,
@@ -14,7 +15,14 @@ import {
   DrawerBody,
   DrawerFooter,
 } from "@heroui/drawer";
-import { useDisclosure } from "@heroui/modal";
+import {
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  useDisclosure,
+} from "@heroui/modal";
 
 import { extractDataFromFile, ExtractionUsage } from "@/lib/openai";
 import {
@@ -30,6 +38,11 @@ import {
   CheckIcon,
   DollarIcon,
   ScrewdriverIcon,
+  HistoryIcon,
+  StarIcon,
+  SaveIcon,
+  DocumentIcon,
+  BackIcon,
 } from "@/components/icons";
 import { CodeEditor } from "@/components/code-editor";
 import { JsonTable } from "@/components/json-table";
@@ -41,6 +54,21 @@ import {
   getAvatarUrl,
   clearCredentials,
 } from "@/lib/secure-storage";
+import {
+  getHistoryItems,
+  saveHistoryItem,
+  toggleStarHistoryItem,
+  deleteHistoryItem,
+  clearAllHistory,
+} from "@/lib/history-storage";
+import {
+  saveFileBlob,
+  getFileBlob,
+  deleteFileBlob,
+  generateThumbnail,
+  clearAllFileBlobs,
+} from "@/lib/file-storage";
+import { HistoryItem } from "@/types";
 
 export default function Home() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -60,9 +88,23 @@ export default function Home() {
   const [extractionUsage, setExtractionUsage] =
     useState<ExtractionUsage | null>(null);
   const [devOptionsEnabled, setDevOptionsEnabled] = useState(false);
+  const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
+  const [currentHistoryId, setCurrentHistoryId] = useState<string | null>(null);
+  const [showSaveSuccess, setShowSaveSuccess] = useState(false);
   const hasReceivedDataRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const saveSuccessTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
+  const {
+    isOpen: isHistoryOpen,
+    onOpen: onHistoryOpen,
+    onOpenChange: onHistoryOpenChange,
+  } = useDisclosure();
+  const {
+    isOpen: isClearModalOpen,
+    onOpen: onClearModalOpen,
+    onOpenChange: onClearModalOpenChange,
+  } = useDisclosure();
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -123,6 +165,15 @@ export default function Home() {
     fileInputRef.current?.click();
   };
 
+  // Load history on mount
+  useEffect(() => {
+    if (isLoggedIn) {
+      const history = getHistoryItems();
+
+      setHistoryItems(history);
+    }
+  }, [isLoggedIn]);
+
   // Check authentication on mount
   useEffect(() => {
     const checkAuth = () => {
@@ -165,6 +216,10 @@ export default function Home() {
     return () => {
       window.removeEventListener("devOptionsChanged", handleDevOptionsChanged);
       window.removeEventListener("storage", handleStorageChange);
+      // Clear save success timeout on unmount
+      if (saveSuccessTimeoutRef.current) {
+        clearTimeout(saveSuccessTimeoutRef.current);
+      }
     };
   }, []);
 
@@ -184,6 +239,160 @@ export default function Home() {
     setAvatarUrl(null);
     // Clear all app state
     handleClearImage();
+  };
+
+  // Save current extraction to history
+  const handleSaveToHistory = async () => {
+    if (!selectedFile || !extractedText || !extractionUsage) return;
+
+    let newItem: HistoryItem | null = null;
+
+    try {
+      // Generate thumbnail for preview
+      const thumbnail = await generateThumbnail(selectedFile);
+
+      // Save metadata first to get the generated ID
+      // Parse JSON content - type is unknown as structure depends on extraction
+      const parsedJson: unknown = jsonContent ? JSON.parse(jsonContent) : null;
+
+      newItem = saveHistoryItem({
+        timestamp: Date.now(),
+        filename: selectedFile.name,
+        fileType: fileType || "image",
+        fileSize: selectedFile.size,
+        extractedData: extractedText,
+        jsonContent: parsedJson,
+        usage: extractionUsage,
+        starred: false,
+        preview: thumbnail,
+      });
+
+      // Save the actual file to IndexedDB with the generated ID
+      // If this fails, we need to rollback the metadata
+      try {
+        await saveFileBlob(newItem.id, selectedFile);
+      } catch (fileError) {
+        // Rollback: delete the metadata we just saved
+        deleteHistoryItem(newItem.id);
+        throw fileError;
+      }
+
+      setHistoryItems(getHistoryItems());
+      setCurrentHistoryId(newItem.id);
+
+      // Show success message
+      setShowSaveSuccess(true);
+
+      // Clear any existing timeout
+      if (saveSuccessTimeoutRef.current) {
+        clearTimeout(saveSuccessTimeoutRef.current);
+      }
+
+      // Auto-hide after 3 seconds
+      saveSuccessTimeoutRef.current = setTimeout(() => {
+        setShowSaveSuccess(false);
+        saveSuccessTimeoutRef.current = null;
+      }, 3000);
+    } catch {
+      // Handle error silently
+    }
+  };
+
+  // Load a history item
+  const handleLoadHistoryItem = async (item: HistoryItem) => {
+    try {
+      // Clear current state first
+      handleClearImage();
+
+      // Load the actual file from IndexedDB
+      const savedFile = await getFileBlob(item.id);
+
+      if (savedFile) {
+        // Process the file normally
+        processFile(savedFile);
+      }
+
+      // Set the history data
+      setExtractedText(item.extractedData);
+      // Type guard: Safely stringify unknown jsonContent
+      const jsonString =
+        item.jsonContent !== null && item.jsonContent !== undefined
+          ? JSON.stringify(item.jsonContent, null, 2)
+          : "";
+
+      setJsonContent(jsonString);
+      setExtractionUsage(item.usage);
+      setIsDataExtracted(true);
+      setHasReceivedData(true);
+      hasReceivedDataRef.current = true;
+      setCurrentHistoryId(item.id);
+
+      // Close the history drawer
+      onHistoryOpenChange();
+    } catch {
+      // Handle error silently
+    }
+  };
+
+  // Toggle star on history item
+  const handleToggleStar = (id: string) => {
+    try {
+      toggleStarHistoryItem(id);
+      setHistoryItems(getHistoryItems());
+    } catch {
+      // Handle error silently
+    }
+  };
+
+  // Delete history item
+  const handleDeleteHistoryItem = async (id: string) => {
+    try {
+      // Delete from localStorage
+      deleteHistoryItem(id);
+
+      // Delete file from IndexedDB
+      await deleteFileBlob(id);
+
+      setHistoryItems(getHistoryItems());
+      if (currentHistoryId === id) {
+        setCurrentHistoryId(null);
+      }
+    } catch {
+      // Handle error silently
+    }
+  };
+
+  // Clear all history
+  const handleClearAllHistory = async () => {
+    try {
+      // Clear all files from IndexedDB
+      await clearAllFileBlobs();
+
+      // Clear all from localStorage
+      clearAllHistory();
+
+      // Revoke the PDF URL to free memory before resetting
+      if (pdfUrl) {
+        URL.revokeObjectURL(pdfUrl);
+      }
+
+      // Reset state
+      setHistoryItems([]);
+      setCurrentHistoryId(null);
+      setSelectedFile(null);
+      setSelectedImage(null);
+      setPdfUrl(null);
+      setFileType(null);
+      setExtractedText("");
+      setJsonContent("");
+      setIsDataExtracted(false);
+      setExtractionUsage(null);
+
+      // Close the modal
+      onClearModalOpenChange();
+    } catch {
+      // Handle error silently
+    }
   };
 
   // Parse extracted text into JSON
@@ -228,6 +437,7 @@ export default function Home() {
     setExtractedText("");
     setJsonContent("");
     setExtractionUsage(null);
+    setCurrentHistoryId(null); // Clear history ID
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -241,6 +451,8 @@ export default function Home() {
     setHasReceivedData(false);
     hasReceivedDataRef.current = false;
     setExtractedText("");
+    // Clear history ID when doing a new extraction
+    setCurrentHistoryId(null);
 
     try {
       // Use streaming to update text in real-time with batched callback
@@ -368,9 +580,26 @@ export default function Home() {
     <>
       <Navbar
         avatarUrl={avatarUrl}
+        historyCount={historyItems.length}
         username={username}
+        onHistoryClick={onHistoryOpen}
         onLogout={handleLogout}
       />
+
+      {/* Success Alert */}
+      {showSaveSuccess && (
+        <div className="fixed top-20 right-4 z-50 w-full max-w-md">
+          <Alert
+            color="success"
+            description="Your extraction has been saved to history."
+            isVisible={showSaveSuccess}
+            title="Extraction Saved Successfully"
+            variant="faded"
+            onClose={() => setShowSaveSuccess(false)}
+          />
+        </div>
+      )}
+
       <section
         className="flex flex-col items-center justify-center flex-1 py-8 gap-6"
         onDragLeave={handleDragLeave}
@@ -422,6 +651,16 @@ export default function Home() {
                       </div>
                     )}
 
+                    {/* Saved item indicator */}
+                    {!isExtracting && currentHistoryId && (
+                      <div className="flex items-center gap-2 text-primary">
+                        <HistoryIcon size={18} />
+                        <span className="text-sm font-medium">
+                          Viewing saved extraction
+                        </span>
+                      </div>
+                    )}
+
                     <div className="flex gap-2 ml-auto">
                       {!isDataExtracted && (
                         <Button
@@ -440,12 +679,18 @@ export default function Home() {
                         </Button>
                       )}
                       <Button
-                        color="danger"
-                        startContent={<TrashIcon size={18} />}
+                        color={currentHistoryId ? "default" : "danger"}
+                        startContent={
+                          currentHistoryId ? (
+                            <BackIcon size={18} />
+                          ) : (
+                            <TrashIcon size={18} />
+                          )
+                        }
                         variant="flat"
                         onPress={handleClearImage}
                       >
-                        Remove
+                        {currentHistoryId ? "Back" : "Remove"}
                       </Button>
                     </div>
                   </div>
@@ -457,6 +702,21 @@ export default function Home() {
                     <div className="flex items-center justify-between mb-4">
                       <h2 className="text-lg font-semibold">Extracted Data</h2>
                       <div className="flex items-center gap-2">
+                        {/* Only show Save button for new extractions, not saved items */}
+                        {!isExtracting &&
+                          extractedText &&
+                          extractionUsage &&
+                          !currentHistoryId && (
+                            <Button
+                              color="success"
+                              size="sm"
+                              startContent={<SaveIcon size={18} />}
+                              variant="flat"
+                              onPress={handleSaveToHistory}
+                            >
+                              Save
+                            </Button>
+                          )}
                         {devOptionsEnabled && extractionUsage && (
                           <Button
                             color="warning"
@@ -690,6 +950,219 @@ export default function Home() {
           )}
         </DrawerContent>
       </Drawer>
+
+      {/* History Drawer */}
+      <Drawer
+        isOpen={isHistoryOpen}
+        placement="left"
+        size="lg"
+        onOpenChange={onHistoryOpenChange}
+      >
+        <DrawerContent>
+          {(onClose) => (
+            <>
+              <DrawerHeader className="flex flex-col gap-1">
+                <h2 className="text-xl font-bold">History</h2>
+                <div className="flex flex-col gap-1 text-sm text-default-500">
+                  <p>
+                    {historyItems.length} extraction
+                    {historyItems.length !== 1 ? "s" : ""}
+                  </p>
+                  {historyItems.length > 0 && (
+                    <div className="flex items-center gap-1">
+                      <DollarIcon size={16} />
+                      <span>
+                        Total cost: $
+                        {historyItems
+                          .reduce(
+                            (sum, item) =>
+                              sum + (item.usage?.estimatedCost || 0),
+                            0,
+                          )
+                          .toFixed(4)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </DrawerHeader>
+              <DrawerBody>
+                {historyItems.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full text-center text-default-400">
+                    <HistoryIcon size={48} />
+                    <p className="mt-4 text-lg">No history yet</p>
+                    <p className="text-sm mt-2">
+                      Your saved extractions will appear here
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {historyItems.map((item) => (
+                      <div
+                        key={item.id}
+                        className="cursor-pointer"
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => handleLoadHistoryItem(item)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            handleLoadHistoryItem(item);
+                          }
+                        }}
+                      >
+                        <Card
+                          className={`p-4 hover:bg-default-100 transition-colors ${
+                            currentHistoryId === item.id
+                              ? "border-2 border-primary"
+                              : ""
+                          }`}
+                        >
+                          <div className="flex items-start gap-3">
+                            {/* Preview thumbnail */}
+                            <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-default-200 flex items-center justify-center">
+                              {item.preview ? (
+                                <Image
+                                  alt="Preview"
+                                  className="w-full h-full object-cover"
+                                  src={item.preview}
+                                />
+                              ) : (
+                                <DocumentIcon
+                                  className="text-default-400"
+                                  size={32}
+                                />
+                              )}
+                            </div>
+
+                            {/* Content */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex-1 min-w-0">
+                                  <h3 className="font-semibold truncate">
+                                    {item.filename}
+                                  </h3>
+                                  <p className="text-xs text-default-500 mt-1">
+                                    {new Date(item.timestamp).toLocaleString()}
+                                  </p>
+                                </div>
+
+                                {/* Star button */}
+                                {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
+                                <div
+                                  onClick={(e) => e.stopPropagation()}
+                                  onKeyDown={(e) => e.stopPropagation()}
+                                >
+                                  <Button
+                                    isIconOnly
+                                    className="flex-shrink-0"
+                                    size="sm"
+                                    variant="light"
+                                    onPress={() => handleToggleStar(item.id)}
+                                  >
+                                    <StarIcon
+                                      fill={
+                                        item.starred ? "currentColor" : "none"
+                                      }
+                                      size={20}
+                                    />
+                                  </Button>
+                                </div>
+                              </div>
+
+                              {/* Stats */}
+                              <div className="flex items-center gap-3 mt-2 text-xs text-default-500">
+                                <div className="flex items-center gap-1">
+                                  <TokenIcon size={14} />
+                                  <span>
+                                    {item.usage.totalTokens.toLocaleString()}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <ClockIcon size={14} />
+                                  <span>
+                                    {(item.usage.durationMs / 1000).toFixed(1)}s
+                                  </span>
+                                </div>
+                                {item.usage.estimatedCost !== undefined && (
+                                  <div className="flex items-center gap-1">
+                                    <DollarIcon size={14} />
+                                    <span>
+                                      ${item.usage.estimatedCost.toFixed(4)}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Delete button */}
+                            {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
+                            <div
+                              onClick={(e) => e.stopPropagation()}
+                              onKeyDown={(e) => e.stopPropagation()}
+                            >
+                              <Button
+                                isIconOnly
+                                className="flex-shrink-0"
+                                color="danger"
+                                size="sm"
+                                variant="light"
+                                onPress={() => handleDeleteHistoryItem(item.id)}
+                              >
+                                <TrashIcon size={16} />
+                              </Button>
+                            </div>
+                          </div>
+                        </Card>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </DrawerBody>
+              <DrawerFooter className="flex justify-between">
+                <Button
+                  color="danger"
+                  isDisabled={historyItems.length === 0}
+                  startContent={<TrashIcon size={18} />}
+                  variant="flat"
+                  onPress={onClearModalOpen}
+                >
+                  Clear All History
+                </Button>
+                <Button color="primary" variant="light" onPress={onClose}>
+                  Close
+                </Button>
+              </DrawerFooter>
+            </>
+          )}
+        </DrawerContent>
+      </Drawer>
+
+      {/* Clear History Confirmation Modal */}
+      <Modal isOpen={isClearModalOpen} onOpenChange={onClearModalOpenChange}>
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader className="flex flex-col gap-1">
+                Clear All History?
+              </ModalHeader>
+              <ModalBody>
+                <p>
+                  This will permanently delete all history and stored files.
+                  This action cannot be undone.
+                </p>
+              </ModalBody>
+              <ModalFooter>
+                <Button color="default" variant="light" onPress={onClose}>
+                  Cancel
+                </Button>
+                <Button color="danger" onPress={handleClearAllHistory}>
+                  Clear All
+                </Button>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
     </>
   );
 }
