@@ -91,7 +91,7 @@ function createWindow() {
       const allHeaders = existingHeadersStr 
         ? [...existingHeadersStr.split(",").map(h => h.trim()), ...requiredHeaders]
         : requiredHeaders;
-      const uniqueHeaders = [...new Set(allHeaders)];
+      const uniqueHeaders = Array.from(new Set(allHeaders));
 
       // Delete existing CORS headers to prevent duplicates (except allow-headers)
       delete responseHeaders["access-control-allow-origin"];
