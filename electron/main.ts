@@ -77,19 +77,24 @@ function createWindow() {
 
       // Get existing allowed headers from upstream
       const existingHeaders = responseHeaders["access-control-allow-headers"];
-      const existingHeadersStr = existingHeaders ? existingHeaders.join(", ") : "";
-      
+      const existingHeadersStr = existingHeaders
+        ? existingHeaders.join(", ")
+        : "";
+
       // Required headers for OpenAI API
       const requiredHeaders = [
-        "Authorization", 
-        "Content-Type", 
+        "Authorization",
+        "Content-Type",
         "OpenAI-Organization",
-        "OpenAI-Project"
+        "OpenAI-Project",
       ];
-      
+
       // Merge existing headers with required ones, avoiding duplicates
-      const allHeaders = existingHeadersStr 
-        ? [...existingHeadersStr.split(",").map(h => h.trim()), ...requiredHeaders]
+      const allHeaders = existingHeadersStr
+        ? [
+            ...existingHeadersStr.split(",").map((h) => h.trim()),
+            ...requiredHeaders,
+          ]
         : requiredHeaders;
       const uniqueHeaders = Array.from(new Set(allHeaders));
 
@@ -103,7 +108,9 @@ function createWindow() {
       responseHeaders["Access-Control-Allow-Methods"] = [
         "GET, POST, PUT, DELETE, OPTIONS",
       ];
-      responseHeaders["Access-Control-Allow-Headers"] = [uniqueHeaders.join(", ")];
+      responseHeaders["Access-Control-Allow-Headers"] = [
+        uniqueHeaders.join(", "),
+      ];
 
       callback({ responseHeaders });
     },

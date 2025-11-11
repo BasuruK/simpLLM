@@ -20,3 +20,13 @@
 .DraftEditor-editorContainer {
   height: 100%;
 }
+
+/* Smooth drag and drop visual feedback */
+* {
+  transition: border-color 0.2s ease-in-out, background-color 0.2s ease-in-out;
+}
+
+/* Prevent harsh border edges during drag events */
+section[data-drag-active] {
+  border-radius: 1rem;
+}
