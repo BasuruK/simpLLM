@@ -186,7 +186,7 @@ export function UpdateNotification() {
             <div className="space-y-4">
               <div>
                 <p className="text-sm text-default-500">
-                  A new version of simpLLM is available
+                  A new version of Simple Invoice Scanner is available
                 </p>
                 <p className="text-lg font-semibold mt-1">
                   Version {updateInfo.version}

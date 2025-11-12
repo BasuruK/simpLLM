@@ -91,9 +91,11 @@ export default function Home() {
   const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
   const [currentHistoryId, setCurrentHistoryId] = useState<string | null>(null);
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const hasReceivedDataRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const saveSuccessTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const dragCounterRef = useRef(0);
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
   const {
     isOpen: isHistoryOpen,
@@ -135,6 +137,15 @@ export default function Home() {
     }
   };
 
+  const handleDragEnter = (e: React.DragEvent<HTMLElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current++;
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+      setIsDragging(true);
+    }
+  };
+
   const handleDragOver = (e: React.DragEvent<HTMLElement>) => {
     e.preventDefault();
     e.stopPropagation();
@@ -143,11 +154,17 @@ export default function Home() {
   const handleDragLeave = (e: React.DragEvent<HTMLElement>) => {
     e.preventDefault();
     e.stopPropagation();
+    dragCounterRef.current--;
+    if (dragCounterRef.current === 0) {
+      setIsDragging(false);
+    }
   };
 
   const handleDrop = (e: React.DragEvent<HTMLElement>) => {
     e.preventDefault();
     e.stopPropagation();
+    setIsDragging(false);
+    dragCounterRef.current = 0;
 
     const files = e.dataTransfer.files;
 
@@ -601,11 +618,31 @@ export default function Home() {
       )}
 
       <section
-        className="flex flex-col items-center justify-center flex-1 py-8 gap-6"
+        className="flex flex-col items-center justify-center flex-1 py-8 gap-6 relative transition-all duration-200"
+        onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
         onDragOver={handleDragOver}
         onDrop={handleDrop}
       >
+        {/* Drag Overlay */}
+        {isDragging && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none">
+            <div className="border-3 border-dashed border-primary-400/60 rounded-3xl p-12 bg-primary-50/90 dark:bg-primary-950/90 backdrop-blur-sm shadow-2xl shadow-primary-500/20">
+              <div className="flex flex-col items-center gap-4">
+                <UploadIcon className="text-primary-500" size={64} />
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-primary-600 dark:text-primary-400">
+                    Drop your file here
+                  </p>
+                  <p className="text-sm text-primary-500 mt-2">
+                    Supports images and PDF files
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {selectedFile ? (
           <>
             <div className="w-full flex items-center justify-center">
@@ -858,34 +895,66 @@ export default function Home() {
             )}
           </>
         ) : (
-          <div className="flex flex-col items-center justify-center text-center text-default-400 flex-1">
-            <div>
-              <p className="text-lg">No file uploaded yet</p>
-              <p className="text-sm mt-2">
-                Click the button below to upload an image or PDF or
-                <br />
-                simply drag and drop here.
-              </p>
-            </div>
+          <div
+            className={`flex flex-col items-center justify-center text-center flex-1 max-w-2xl w-full mx-auto transition-all duration-200 ${
+              isDragging ? "scale-95 opacity-50" : ""
+            }`}
+          >
+            <div
+              className={`border-2 border-dashed rounded-3xl p-16 w-full transition-all duration-300 ${
+                isDragging
+                  ? "border-primary-400/60 bg-primary-50 dark:bg-primary-950/20 shadow-lg shadow-primary-500/10"
+                  : "border-default-300/70 hover:border-default-400 hover:bg-default-50 dark:hover:bg-default-100/50 hover:shadow-md"
+              }`}
+            >
+              <div className="flex flex-col items-center gap-6">
+                <UploadIcon
+                  className={`transition-all duration-200 ${
+                    isDragging
+                      ? "text-primary-500 scale-110"
+                      : "text-default-400"
+                  }`}
+                  size={64}
+                />
+                <div>
+                  <p className="text-lg font-medium text-default-600 dark:text-default-400">
+                    {isDragging
+                      ? "Drop your file here"
+                      : "No file uploaded yet"}
+                  </p>
+                  <p className="text-sm text-default-400 mt-2">
+                    {isDragging ? (
+                      "Release to upload"
+                    ) : (
+                      <>
+                        Click the button below to upload an image or PDF
+                        <br />
+                        or simply drag and drop here
+                      </>
+                    )}
+                  </p>
+                </div>
 
-            {/* Upload Button when no file */}
-            <div className="mt-8">
-              <input
-                ref={fileInputRef}
-                accept="image/*,application/pdf"
-                className="hidden"
-                type="file"
-                onChange={handleImageUpload}
-              />
-              <Button
-                color="primary"
-                size="lg"
-                startContent={<UploadIcon size={20} />}
-                variant="shadow"
-                onPress={handleButtonClick}
-              >
-                Upload File
-              </Button>
+                {/* Upload Button when no file */}
+                <div className="mt-2">
+                  <input
+                    ref={fileInputRef}
+                    accept="image/*,application/pdf"
+                    className="hidden"
+                    type="file"
+                    onChange={handleImageUpload}
+                  />
+                  <Button
+                    color="primary"
+                    size="lg"
+                    startContent={<UploadIcon size={20} />}
+                    variant="shadow"
+                    onPress={handleButtonClick}
+                  >
+                    Upload File
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
         )}
