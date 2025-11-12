@@ -618,9 +618,7 @@ export default function Home() {
       )}
 
       <section
-        className={`flex flex-col items-center justify-center flex-1 py-8 gap-6 relative transition-all duration-200 ${
-          isDragging ? "bg-primary-50 dark:bg-primary-950/20" : ""
-        }`}
+        className="flex flex-col items-center justify-center flex-1 py-8 gap-6 relative transition-all duration-200"
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
         onDragOver={handleDragOver}
