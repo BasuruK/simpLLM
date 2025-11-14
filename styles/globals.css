@@ -30,3 +30,68 @@
 section[data-drag-active] {
   border-radius: 1rem;
 }
+
+/* Swiper Navigation Styles */
+.swiper-button-next,
+.swiper-button-prev {
+  color: #000000 !important;
+  background: transparent !important;
+  width: 44px !important;
+  height: 44px !important;
+  transition: all 0.2s ease;
+  z-index: 10 !important;
+}
+
+.swiper-button-next:hover,
+.swiper-button-prev:hover {
+  color: #333333 !important;
+  transform: scale(1.15);
+}
+
+.swiper-button-next::after,
+.swiper-button-prev::after {
+  font-size: 28px !important;
+  font-weight: bold;
+}
+
+.swiper-button-next {
+  right: 10px !important;
+}
+
+.swiper-button-prev {
+  left: 10px !important;
+}
+
+.swiper-button-disabled {
+  opacity: 0.35 !important;
+  cursor: not-allowed !important;
+}
+
+.swiper-pagination-bullet {
+  background: hsl(var(--nextui-default-300)) !important;
+  opacity: 0.5;
+  width: 8px !important;
+  height: 8px !important;
+}
+
+.swiper-pagination-bullet-active {
+  background: hsl(var(--nextui-primary)) !important;
+  opacity: 1;
+  width: 24px !important;
+  border-radius: 4px !important;
+}
+
+.swiper-pagination {
+  bottom: 4px !important;
+  z-index: 10 !important;
+}
+
+/* Ensure swiper container has proper positioning */
+.swiper {
+  position: relative;
+  width: 100%;
+}
+
+.swiper-wrapper {
+  position: relative;
+}

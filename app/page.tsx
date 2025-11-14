@@ -1,6 +1,13 @@
 "use client";
 
+import type { Swiper as SwiperType } from "swiper";
+
 import { useState, useRef, useEffect, useCallback } from "react";
+import { Swiper, SwiperSlide } from "swiper/react";
+import { Navigation, Pagination, Keyboard } from "swiper/modules";
+import "swiper/css";
+import "swiper/css/navigation";
+import "swiper/css/pagination";
 import { Button } from "@heroui/button";
 import { Card } from "@heroui/card";
 import { Image } from "@heroui/image";
@@ -75,10 +82,10 @@ export default function Home() {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [username, setUsername] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
-  const [fileType, setFileType] = useState<"image" | "pdf" | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [currentFileIndex, setCurrentFileIndex] = useState(0);
+  const [fileUrls, setFileUrls] = useState<string[]>([]);
+  const swiperRef = useRef<SwiperType | null>(null);
   const [isDataExtracted, setIsDataExtracted] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractedText, setExtractedText] = useState("");
@@ -109,32 +116,37 @@ export default function Home() {
   } = useDisclosure();
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+    const files = event.target.files;
 
-    if (file) {
-      processFile(file);
+    if (files && files.length > 0) {
+      processFiles(Array.from(files));
     }
   };
 
-  const processFile = (file: File) => {
-    setSelectedFile(file);
+  const processFiles = (files: File[]) => {
+    // Filter valid files (images and PDFs)
+    const validFiles = files.filter(
+      (file) =>
+        file.type.startsWith("image/") || file.type === "application/pdf",
+    );
 
-    if (file.type.startsWith("image/")) {
-      setFileType("image");
-      const reader = new FileReader();
+    if (validFiles.length === 0) return;
 
-      reader.onloadend = () => {
-        setSelectedImage(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    } else if (file.type === "application/pdf") {
-      setFileType("pdf");
-      setSelectedImage(null);
-      // Create object URL for PDF preview
-      const url = URL.createObjectURL(file);
+    // Clean up old URLs
+    fileUrls.forEach((url) => URL.revokeObjectURL(url));
 
-      setPdfUrl(url);
-    }
+    // Create URLs for all files
+    const urls = validFiles.map((file) => {
+      if (file.type.startsWith("image/")) {
+        return URL.createObjectURL(file);
+      } else {
+        return URL.createObjectURL(file);
+      }
+    });
+
+    setSelectedFiles(validFiles);
+    setFileUrls(urls);
+    setCurrentFileIndex(0);
   };
 
   const handleDragEnter = (e: React.DragEvent<HTMLElement>) => {
@@ -169,12 +181,7 @@ export default function Home() {
     const files = e.dataTransfer.files;
 
     if (files && files.length > 0) {
-      const file = files[0];
-
-      // Check if it's an image or PDF
-      if (file.type.startsWith("image/") || file.type === "application/pdf") {
-        processFile(file);
-      }
+      processFiles(Array.from(files));
     }
   };
 
@@ -260,23 +267,27 @@ export default function Home() {
 
   // Save current extraction to history
   const handleSaveToHistory = async () => {
-    if (!selectedFile || !extractedText || !extractionUsage) return;
+    const currentFile = selectedFiles[currentFileIndex];
+
+    if (!currentFile || !extractedText || !extractionUsage) return;
 
     let newItem: HistoryItem | null = null;
 
     try {
       // Generate thumbnail for preview
-      const thumbnail = await generateThumbnail(selectedFile);
+      const thumbnail = await generateThumbnail(currentFile);
 
       // Save metadata first to get the generated ID
       // Parse JSON content - type is unknown as structure depends on extraction
       const parsedJson: unknown = jsonContent ? JSON.parse(jsonContent) : null;
 
+      const fileType = currentFile.type.startsWith("image/") ? "image" : "pdf";
+
       newItem = saveHistoryItem({
         timestamp: Date.now(),
-        filename: selectedFile.name,
-        fileType: fileType || "image",
-        fileSize: selectedFile.size,
+        filename: currentFile.name,
+        fileType: fileType,
+        fileSize: currentFile.size,
         extractedData: extractedText,
         jsonContent: parsedJson,
         usage: extractionUsage,
@@ -287,7 +298,7 @@ export default function Home() {
       // Save the actual file to IndexedDB with the generated ID
       // If this fails, we need to rollback the metadata
       try {
-        await saveFileBlob(newItem.id, selectedFile);
+        await saveFileBlob(newItem.id, currentFile);
       } catch (fileError) {
         // Rollback: delete the metadata we just saved
         deleteHistoryItem(newItem.id);
@@ -326,7 +337,7 @@ export default function Home() {
 
       if (savedFile) {
         // Process the file normally
-        processFile(savedFile);
+        processFiles([savedFile]);
       }
 
       // Set the history data
@@ -388,18 +399,15 @@ export default function Home() {
       // Clear all from localStorage
       clearAllHistory();
 
-      // Revoke the PDF URL to free memory before resetting
-      if (pdfUrl) {
-        URL.revokeObjectURL(pdfUrl);
-      }
+      // Revoke all file URLs to free memory
+      fileUrls.forEach((url) => URL.revokeObjectURL(url));
 
       // Reset state
       setHistoryItems([]);
       setCurrentHistoryId(null);
-      setSelectedFile(null);
-      setSelectedImage(null);
-      setPdfUrl(null);
-      setFileType(null);
+      setSelectedFiles([]);
+      setFileUrls([]);
+      setCurrentFileIndex(0);
       setExtractedText("");
       setJsonContent("");
       setIsDataExtracted(false);
@@ -439,14 +447,11 @@ export default function Home() {
   }, [extractedText]);
 
   const handleClearImage = () => {
-    // Revoke the PDF URL to free memory
-    if (pdfUrl) {
-      URL.revokeObjectURL(pdfUrl);
-      setPdfUrl(null);
-    }
-    setSelectedImage(null);
-    setSelectedFile(null);
-    setFileType(null);
+    // Revoke all file URLs to free memory
+    fileUrls.forEach((url) => URL.revokeObjectURL(url));
+    setSelectedFiles([]);
+    setFileUrls([]);
+    setCurrentFileIndex(0);
     setIsDataExtracted(false);
     setIsExtracting(false);
     setHasReceivedData(false);
@@ -461,7 +466,9 @@ export default function Home() {
   };
 
   const handleExtractData = useCallback(async () => {
-    if (!selectedFile) return;
+    const currentFile = selectedFiles[currentFileIndex];
+
+    if (!currentFile) return;
 
     setIsExtracting(true);
     setIsDataExtracted(true);
@@ -482,7 +489,7 @@ export default function Home() {
         setExtractedText(streamedText);
       };
 
-      const result = await extractDataFromFile(selectedFile, streamCallback);
+      const result = await extractDataFromFile(currentFile, streamCallback);
 
       // Set the final structured result
       if (result) {
@@ -514,7 +521,7 @@ export default function Home() {
     } finally {
       setIsExtracting(false);
     }
-  }, [selectedFile]);
+  }, [selectedFiles, currentFileIndex]);
 
   const handleCopyText = async () => {
     if (!extractedText) return;
@@ -643,39 +650,67 @@ export default function Home() {
           </div>
         )}
 
-        {selectedFile ? (
+        {selectedFiles.length > 0 ? (
           <>
             <div className="w-full flex items-center justify-center">
               <div
-                className={`w-full grid gap-6 transition-all duration-1000 ease-in-out ${
-                  isDataExtracted
-                    ? "grid-cols-1 lg:grid-cols-2"
-                    : "grid-cols-1 max-w-2xl"
-                }`}
+                className={`w-full grid gap-6 transition-all duration-1000 ease-in-out ${isDataExtracted ? "grid-cols-1 lg:grid-cols-2" : "grid-cols-1"}`}
+                style={
+                  !isDataExtracted
+                    ? { maxWidth: "calc(40rem * 1.12)" }
+                    : undefined
+                }
               >
-                {/* File Preview Card */}
+                {/* File Preview Card with Swiper */}
                 <Card
                   className={`p-4 transition-all duration-1000 ease-in-out ${
                     isDataExtracted ? "" : "mx-auto w-full"
                   }`}
                 >
-                  {fileType === "image" && selectedImage ? (
-                    <div className="w-full h-[70vh] border border-default-200 rounded-lg overflow-auto bg-default-50 dark:bg-default-100">
-                      <Image
-                        alt="Uploaded preview"
-                        className="w-full h-auto"
-                        src={selectedImage}
-                      />
-                    </div>
-                  ) : fileType === "pdf" && pdfUrl ? (
-                    <div className="w-full h-[70vh] border border-default-200 rounded-lg overflow-hidden">
-                      <iframe
-                        className="w-full h-full"
-                        src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=0`}
-                        title="PDF Preview"
-                      />
-                    </div>
-                  ) : null}
+                  <div className="relative w-full">
+                    <Swiper
+                      navigation
+                      keyboard={{ enabled: true }}
+                      modules={[Navigation, Pagination, Keyboard]}
+                      pagination={{ clickable: true }}
+                      slidesPerView={1}
+                      spaceBetween={0}
+                      style={{ paddingBottom: "32px" }}
+                      onSlideChange={(swiper) =>
+                        setCurrentFileIndex(swiper.activeIndex)
+                      }
+                      onSwiper={(swiper) => {
+                        swiperRef.current = swiper;
+                      }}
+                    >
+                      {selectedFiles.map((file, index) => (
+                        <SwiperSlide key={index}>
+                          <div
+                            className="w-full border border-default-200 rounded-lg overflow-hidden bg-default-50 dark:bg-default-100 flex items-center justify-center"
+                            style={{ height: "calc(82vh * 0.75)" }}
+                          >
+                            {file.type.startsWith("image/") ? (
+                              <img
+                                alt={`Preview ${index + 1}`}
+                                src={fileUrls[index]}
+                                style={{
+                                  maxWidth: "100%",
+                                  maxHeight: "100%",
+                                  objectFit: "contain",
+                                }}
+                              />
+                            ) : (
+                              <iframe
+                                className="w-full h-full"
+                                src={`${fileUrls[index]}#toolbar=0&navpanes=0&scrollbar=0`}
+                                title={`PDF Preview ${index + 1}`}
+                              />
+                            )}
+                          </div>
+                        </SwiperSlide>
+                      ))}
+                    </Swiper>
+                  </div>
 
                   <div className="flex justify-between items-center gap-2 mt-4">
                     {/* Spinner indicator when extracting */}
@@ -699,6 +734,15 @@ export default function Home() {
                     )}
 
                     <div className="flex gap-2 ml-auto">
+                      {/* Show file count indicator */}
+                      {selectedFiles.length > 1 && (
+                        <div className="flex items-center gap-2 text-default-500">
+                          <DocumentIcon size={18} />
+                          <span className="text-sm font-medium">
+                            {currentFileIndex + 1} / {selectedFiles.length}
+                          </span>
+                        </div>
+                      )}
                       {!isDataExtracted && (
                         <Button
                           color="success"
@@ -712,7 +756,9 @@ export default function Home() {
                           variant="flat"
                           onPress={handleExtractData}
                         >
-                          {isExtracting ? "Extracting..." : "Extract Data"}
+                          {isExtracting
+                            ? "Extracting..."
+                            : `Extract${selectedFiles.length > 1 ? ` (${selectedFiles.length})` : ""}`}
                         </Button>
                       )}
                       <Button
@@ -939,6 +985,7 @@ export default function Home() {
                 <div className="mt-2">
                   <input
                     ref={fileInputRef}
+                    multiple
                     accept="image/*,application/pdf"
                     className="hidden"
                     type="file"
@@ -951,7 +998,7 @@ export default function Home() {
                     variant="shadow"
                     onPress={handleButtonClick}
                   >
-                    Upload File
+                    Upload Files
                   </Button>
                 </div>
               </div>
@@ -959,11 +1006,12 @@ export default function Home() {
           </div>
         )}
 
-        {/* Upload Button at Bottom - Only show when file is selected */}
-        {selectedFile && (
+        {/* Upload Button at Bottom - Only show when files are selected */}
+        {selectedFiles.length > 0 && (
           <div className="flex items-center justify-center pb-4 pt-6">
             <input
               ref={fileInputRef}
+              multiple
               accept="image/*,application/pdf"
               className="hidden"
               type="file"
