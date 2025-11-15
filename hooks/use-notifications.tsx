@@ -49,10 +49,15 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
       try {
         const saved = await storage.loadNotifications();
 
-        hasHydratedRef.current = true;
         setNotifications((current) => {
-          // Only apply loaded data if state is still empty (no user changes)
-          return current.length === 0 ? saved : current;
+          // Only apply loaded data if state is still empty and saved has data
+          if (current.length === 0 && saved.length > 0) {
+            hasHydratedRef.current = true;
+
+            return saved;
+          }
+
+          return current;
         });
       } catch {
         // Silent fail - start with empty notifications
@@ -70,6 +75,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
 
     if (hasHydratedRef.current) {
       hasHydratedRef.current = false;
+
       return;
     }
 
