@@ -1,10 +1,16 @@
 import { Notification } from "@/types/notification";
 
+export interface NotificationStorageClient {
+  loadNotifications(): Promise<Notification[]>;
+  saveNotifications(notifications: Notification[]): Promise<void>;
+  clearAll(): Promise<void>;
+}
+
 const DB_NAME = "simpllm-notifications";
 const DB_VERSION = 1;
 const STORE_NAME = "notifications";
 
-class NotificationStorage {
+export class IndexedDBNotificationStorage implements NotificationStorageClient {
   private db: IDBDatabase | null = null;
 
   async init(): Promise<void> {
@@ -93,4 +99,5 @@ class NotificationStorage {
   }
 }
 
-export const notificationStorage = new NotificationStorage();
+export const notificationStorage: NotificationStorageClient =
+  new IndexedDBNotificationStorage();
