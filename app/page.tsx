@@ -136,13 +136,7 @@ export default function Home() {
     fileUrls.forEach((url) => URL.revokeObjectURL(url));
 
     // Create URLs for all files
-    const urls = validFiles.map((file) => {
-      if (file.type.startsWith("image/")) {
-        return URL.createObjectURL(file);
-      } else {
-        return URL.createObjectURL(file);
-      }
-    });
+    const urls = validFiles.map((file) => URL.createObjectURL(file));
 
     setSelectedFiles(validFiles);
     setFileUrls(urls);
@@ -267,6 +261,16 @@ export default function Home() {
 
   // Save current extraction to history
   const handleSaveToHistory = async () => {
+    // Validate bounds before accessing array
+    if (
+      !selectedFiles ||
+      typeof currentFileIndex !== "number" ||
+      currentFileIndex < 0 ||
+      currentFileIndex >= selectedFiles.length
+    ) {
+      return;
+    }
+
     const currentFile = selectedFiles[currentFileIndex];
 
     if (!currentFile || !extractedText || !extractionUsage) return;
@@ -667,7 +671,21 @@ export default function Home() {
                     isDataExtracted ? "" : "mx-auto w-full"
                   }`}
                 >
-                  <div className="relative w-full">
+                  <div
+                    aria-label="File preview carousel"
+                    aria-roledescription="carousel"
+                    className="relative w-full"
+                    role="region"
+                  >
+                    {/* Live region for screen reader announcements */}
+                    <div
+                      aria-atomic="true"
+                      aria-live="polite"
+                      className="sr-only"
+                    >
+                      Viewing file {currentFileIndex + 1} of {selectedFiles.length}
+                    </div>
+
                     <Swiper
                       navigation
                       keyboard={{ enabled: true }}
@@ -684,7 +702,12 @@ export default function Home() {
                       }}
                     >
                       {selectedFiles.map((file, index) => (
-                        <SwiperSlide key={index}>
+                        <SwiperSlide
+                          key={index}
+                          aria-roledescription="slide"
+                          role="group"
+                          aria-label={`${file.name} (Slide ${index + 1} of ${selectedFiles.length})`}
+                        >
                           <div
                             className="w-full border border-default-200 rounded-lg overflow-hidden bg-default-50 dark:bg-default-100 flex items-center justify-center"
                             style={{ height: "calc(82vh * 0.75)" }}
@@ -692,7 +715,7 @@ export default function Home() {
                             {file.type.startsWith("image/") ? (
                               // eslint-disable-next-line @next/next/no-img-element
                               <img
-                                alt={`Preview ${index + 1}`}
+                                alt={`Preview of ${file.name} (${index + 1} of ${selectedFiles.length})`}
                                 src={fileUrls[index]}
                                 style={{
                                   maxWidth: "100%",
@@ -704,7 +727,7 @@ export default function Home() {
                               <iframe
                                 className="w-full h-full"
                                 src={`${fileUrls[index]}#toolbar=0&navpanes=0&scrollbar=0`}
-                                title={`PDF Preview ${index + 1}`}
+                                title={`PDF Preview of ${file.name} (${index + 1} of ${selectedFiles.length})`}
                               />
                             )}
                           </div>
@@ -714,7 +737,10 @@ export default function Home() {
 
                     {/* File count indicator - centered at bottom */}
                     {selectedFiles.length > 1 && (
-                      <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 flex items-center gap-2 text-default-500 bg-default-100/80 dark:bg-default-50/80 backdrop-blur-sm px-3 py-1 rounded-full mb-0">
+                      <div
+                        aria-hidden="true"
+                        className="absolute bottom-0 left-1/2 transform -translate-x-1/2 flex items-center gap-2 text-default-500 bg-default-100/80 dark:bg-default-50/80 backdrop-blur-sm px-3 py-1 rounded-full mb-0"
+                      >
                         <DocumentIcon size={16} />
                         <span className="text-sm font-medium">
                           {currentFileIndex + 1} / {selectedFiles.length}
