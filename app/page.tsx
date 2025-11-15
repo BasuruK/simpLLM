@@ -690,6 +690,7 @@ export default function Home() {
                             style={{ height: "calc(82vh * 0.75)" }}
                           >
                             {file.type.startsWith("image/") ? (
+                              // eslint-disable-next-line @next/next/no-img-element
                               <img
                                 alt={`Preview ${index + 1}`}
                                 src={fileUrls[index]}
@@ -710,6 +711,16 @@ export default function Home() {
                         </SwiperSlide>
                       ))}
                     </Swiper>
+
+                    {/* File count indicator - centered at bottom */}
+                    {selectedFiles.length > 1 && (
+                      <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 flex items-center gap-2 text-default-500 bg-default-100/80 dark:bg-default-50/80 backdrop-blur-sm px-3 py-1 rounded-full mb-0">
+                        <DocumentIcon size={16} />
+                        <span className="text-sm font-medium">
+                          {currentFileIndex + 1} / {selectedFiles.length}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex justify-between items-center gap-2 mt-4">
@@ -734,15 +745,6 @@ export default function Home() {
                     )}
 
                     <div className="flex gap-2 ml-auto">
-                      {/* Show file count indicator */}
-                      {selectedFiles.length > 1 && (
-                        <div className="flex items-center gap-2 text-default-500">
-                          <DocumentIcon size={18} />
-                          <span className="text-sm font-medium">
-                            {currentFileIndex + 1} / {selectedFiles.length}
-                          </span>
-                        </div>
-                      )}
                       {!isDataExtracted && (
                         <Button
                           color="success"
