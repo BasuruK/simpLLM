@@ -41,7 +41,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const notificationIdCounter = useRef(0);
-  const hydratedSnapshotRef = useRef<Notification[] | null>(null);
+  const hasHydratedRef = useRef(false);
 
   // Load notifications from IndexedDB on mount
   useEffect(() => {
@@ -49,7 +49,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
       try {
         const saved = await storage.loadNotifications();
 
-        hydratedSnapshotRef.current = saved;
+        hasHydratedRef.current = true;
         setNotifications(saved);
       } catch {
         // Silent fail - start with empty notifications
@@ -65,13 +65,10 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
   useEffect(() => {
     if (!isLoaded) return;
 
-    if (hydratedSnapshotRef.current === notifications) {
-      hydratedSnapshotRef.current = null;
-
+    if (hasHydratedRef.current) {
+      hasHydratedRef.current = false;
       return;
     }
-
-    hydratedSnapshotRef.current = null;
 
     const saveNotifications = async () => {
       try {
