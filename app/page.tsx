@@ -83,6 +83,8 @@ export default function Home() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [currentFileIndex, setCurrentFileIndex] = useState(0);
   const [fileUrls, setFileUrls] = useState<string[]>([]);
+  const fileUrlsRef = useRef<string[]>([]);
+  const [liveMessage, setLiveMessage] = useState("");
   const [failedPdfIndexes, setFailedPdfIndexes] = useState<Set<number>>(
     new Set(),
   );
@@ -140,7 +142,9 @@ export default function Home() {
 
     setSelectedFiles(validFiles);
     setFileUrls(urls);
+    fileUrlsRef.current = urls;
     setCurrentFileIndex(0);
+    setLiveMessage(`Viewing file 1 of ${validFiles.length}`);
   };
 
   const handleDragEnter = (e: React.DragEvent<HTMLElement>) => {
@@ -235,13 +239,13 @@ export default function Home() {
       window.removeEventListener("devOptionsChanged", handleDevOptionsChanged);
       window.removeEventListener("storage", handleStorageChange);
       // Clean up file URLs on unmount
-      fileUrls.forEach((url) => URL.revokeObjectURL(url));
+      fileUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
       // Clear save success timeout on unmount
       if (saveSuccessTimeoutRef.current) {
         clearTimeout(saveSuccessTimeoutRef.current);
       }
     };
-  }, [fileUrls]);
+  }, []);
 
   const handleLogin = () => {
     const user = getUsername();
@@ -696,7 +700,7 @@ export default function Home() {
                       aria-live="polite"
                       className="sr-only"
                     >
-                      Viewing file {currentFileIndex + 1} of {selectedFiles.length}
+                      {liveMessage}
                     </div>
 
                     <Swiper
@@ -707,9 +711,12 @@ export default function Home() {
                       slidesPerView={1}
                       spaceBetween={0}
                       style={{ paddingBottom: "32px" }}
-                      onSlideChange={(swiper) =>
-                        setCurrentFileIndex(swiper.activeIndex)
-                      }
+                      onSlideChange={(swiper) => {
+                        setCurrentFileIndex(swiper.activeIndex);
+                        setLiveMessage(
+                          `Viewing file ${swiper.activeIndex + 1} of ${selectedFiles.length}`,
+                        );
+                      }}
                     >
                       {selectedFiles.map((file, index) => (
                         <SwiperSlide
