@@ -137,6 +137,11 @@ export default function Home() {
       // Clean up any existing URLs
       fileUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
       fileUrlsRef.current = [];
+
+      // Clear all related state
+      setSelectedFiles([]);
+      setFileUrls([]);
+      setCurrentFileIndex(0);
       setLiveMessage(
         "No valid files uploaded. Only images and PDFs are accepted.",
       );
