@@ -53,7 +53,6 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
           // Only apply loaded data if state is still empty and saved has data
           if (current.length === 0 && saved.length > 0) {
             hasHydratedRef.current = true;
-
             return saved;
           }
 
@@ -75,7 +74,6 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
 
     if (hasHydratedRef.current) {
       hasHydratedRef.current = false;
-
       return;
     }
 
@@ -91,6 +89,9 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
   }, [notifications, isLoaded, storage]);
 
   const addNotification = useCallback((input: NotificationInput): string => {
+    // Clear hydration flag to ensure this change is persisted
+    hasHydratedRef.current = false;
+
     const id = `notification-${Date.now()}-${notificationIdCounter.current++}`;
     const newNotification: Notification = {
       id,
@@ -106,6 +107,9 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
 
   const updateNotification = useCallback(
     (id: string, updates: Partial<NotificationInput>) => {
+      // Clear hydration flag to ensure this change is persisted
+      hasHydratedRef.current = false;
+
       setNotifications((prev) =>
         prev.map((notification) =>
           notification.id === id
@@ -118,6 +122,9 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
   );
 
   const markAsRead = useCallback((id: string) => {
+    // Clear hydration flag to ensure this change is persisted
+    hasHydratedRef.current = false;
+
     setNotifications((prev) =>
       prev.map((notification) =>
         notification.id === id ? { ...notification, read: true } : notification,

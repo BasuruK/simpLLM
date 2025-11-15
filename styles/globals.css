@@ -30,3 +30,92 @@
 section[data-drag-active] {
   border-radius: 1rem;
 }
+
+/* Swiper Navigation Styles - Scoped for specificity */
+.swiper {
+  position: relative;
+  width: 100%;
+}
+
+.swiper .swiper-wrapper {
+  position: relative;
+}
+
+/* Navigation buttons */
+.swiper .swiper-button-next,
+.swiper .swiper-button-prev {
+  color: hsl(var(--nextui-foreground));
+  background: transparent;
+  width: 44px;
+  height: 44px;
+  transition: all 0.2s ease;
+  z-index: 10;
+  cursor: pointer;
+}
+
+.swiper .swiper-button-next:hover,
+.swiper .swiper-button-prev:hover,
+.swiper .swiper-button-next:focus-visible,
+.swiper .swiper-button-prev:focus-visible {
+  color: hsl(var(--nextui-default-600));
+  transform: scale(1.15);
+  outline: 2px solid hsl(var(--nextui-primary));
+  outline-offset: 2px;
+}
+
+.swiper .swiper-button-next::after,
+.swiper .swiper-button-prev::after {
+  font-size: 28px;
+  font-weight: bold;
+}
+
+.swiper .swiper-button-next {
+  right: 10px;
+}
+
+.swiper .swiper-button-prev {
+  left: 10px;
+}
+
+.swiper .swiper-button-disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* Pagination bullets */
+.swiper .swiper-pagination-bullet {
+  background: hsl(var(--nextui-default-300));
+  opacity: 0.5;
+  width: 8px;
+  height: 8px;
+  transition: all 0.2s ease;
+}
+
+.swiper .swiper-pagination-bullet-active {
+  background: hsl(var(--nextui-primary));
+  opacity: 1;
+  width: 24px;
+  border-radius: 4px;
+}
+
+.swiper .swiper-pagination {
+  bottom: 4px;
+  z-index: 10;
+}
+
+/* Responsive sizing for mobile */
+@media (max-width: 640px) {
+  .swiper .swiper-button-next::after,
+  .swiper .swiper-button-prev::after {
+    font-size: 24px;
+  }
+
+  .swiper .swiper-pagination-bullet {
+    width: 10px;
+    height: 10px;
+  }
+
+  .swiper .swiper-pagination-bullet-active {
+    width: 28px;
+  }
+}
