@@ -27,9 +27,7 @@ export function ExampleAddNotification() {
     console.log("Created notification with ID:", notificationId);
   };
 
-  return (
-    <button onClick={handleProcessComplete}>Process Invoices</button>
-  );
+  return <button onClick={handleProcessComplete}>Process Invoices</button>;
 }
 
 /**
@@ -49,9 +47,7 @@ export function ExampleWithFailures() {
     });
   };
 
-  return (
-    <button onClick={handleProcessWithErrors}>Process Batch</button>
-  );
+  return <button onClick={handleProcessWithErrors}>Process Batch</button>;
 }
 
 /**
@@ -103,7 +99,9 @@ export function ExampleUpdateNotification() {
   };
 
   return (
-    <button onClick={handleProgressiveProcess}>Start Progressive Process</button>
+    <button onClick={handleProgressiveProcess}>
+      Start Progressive Process
+    </button>
   );
 }
 
