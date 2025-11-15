@@ -1,7 +1,5 @@
 "use client";
 
-import type { Swiper as SwiperType } from "swiper";
-
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Navigation, Pagination, Keyboard } from "swiper/modules";
@@ -85,7 +83,9 @@ export default function Home() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [currentFileIndex, setCurrentFileIndex] = useState(0);
   const [fileUrls, setFileUrls] = useState<string[]>([]);
-  const swiperRef = useRef<SwiperType | null>(null);
+  const [failedPdfIndexes, setFailedPdfIndexes] = useState<Set<number>>(
+    new Set(),
+  );
   const [isDataExtracted, setIsDataExtracted] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractedText, setExtractedText] = useState("");
@@ -234,12 +234,14 @@ export default function Home() {
     return () => {
       window.removeEventListener("devOptionsChanged", handleDevOptionsChanged);
       window.removeEventListener("storage", handleStorageChange);
+      // Clean up file URLs on unmount
+      fileUrls.forEach((url) => URL.revokeObjectURL(url));
       // Clear save success timeout on unmount
       if (saveSuccessTimeoutRef.current) {
         clearTimeout(saveSuccessTimeoutRef.current);
       }
     };
-  }, []);
+  }, [fileUrls]);
 
   const handleLogin = () => {
     const user = getUsername();
@@ -470,6 +472,17 @@ export default function Home() {
   };
 
   const handleExtractData = useCallback(async () => {
+    // Validate bounds before accessing array
+    if (
+      !selectedFiles ||
+      selectedFiles.length === 0 ||
+      typeof currentFileIndex !== "number" ||
+      currentFileIndex < 0 ||
+      currentFileIndex >= selectedFiles.length
+    ) {
+      return;
+    }
+
     const currentFile = selectedFiles[currentFileIndex];
 
     if (!currentFile) return;
@@ -643,7 +656,7 @@ export default function Home() {
                 <UploadIcon className="text-primary-500" size={64} />
                 <div className="text-center">
                   <p className="text-2xl font-bold text-primary-600 dark:text-primary-400">
-                    Drop your file here
+                    Drop your files here
                   </p>
                   <p className="text-sm text-primary-500 mt-2">
                     Supports images and PDF files
@@ -697,9 +710,6 @@ export default function Home() {
                       onSlideChange={(swiper) =>
                         setCurrentFileIndex(swiper.activeIndex)
                       }
-                      onSwiper={(swiper) => {
-                        swiperRef.current = swiper;
-                      }}
                     >
                       {selectedFiles.map((file, index) => (
                         <SwiperSlide
@@ -723,11 +733,57 @@ export default function Home() {
                                   objectFit: "contain",
                                 }}
                               />
+                            ) : failedPdfIndexes.has(index) ? (
+                              <div
+                                aria-live="polite"
+                                className="flex flex-col items-center justify-center gap-4 p-8 text-center"
+                                role="alert"
+                              >
+                                <div className="text-danger text-lg font-semibold">
+                                  Failed to load PDF preview
+                                </div>
+                                <p className="text-default-500 text-sm">
+                                  {file.name}
+                                </p>
+                                <div className="flex gap-2">
+                                  <Button
+                                    color="primary"
+                                    size="sm"
+                                    variant="flat"
+                                    onPress={() => {
+                                      setFailedPdfIndexes((prev) => {
+                                        const updated = new Set(prev);
+
+                                        updated.delete(index);
+
+                                        return updated;
+                                      });
+                                    }}
+                                  >
+                                    Retry
+                                  </Button>
+                                  <Button
+                                    as="a"
+                                    color="default"
+                                    download={file.name}
+                                    href={fileUrls[index]}
+                                    size="sm"
+                                    variant="flat"
+                                  >
+                                    Download
+                                  </Button>
+                                </div>
+                              </div>
                             ) : (
                               <iframe
                                 className="w-full h-full"
                                 src={`${fileUrls[index]}#toolbar=0&navpanes=0&scrollbar=0`}
                                 title={`PDF Preview of ${file.name} (${index + 1} of ${selectedFiles.length})`}
+                                onError={() => {
+                                  setFailedPdfIndexes((prev) =>
+                                    new Set(prev).add(index),
+                                  );
+                                }}
                               />
                             )}
                           </div>
