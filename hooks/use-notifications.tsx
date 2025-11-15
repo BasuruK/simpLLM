@@ -10,7 +10,10 @@ import React, {
 } from "react";
 
 import { Notification, NotificationInput } from "@/types/notification";
-import { notificationStorage } from "@/lib/notification-storage";
+import {
+  NotificationStorageClient,
+  notificationStorage,
+} from "@/lib/notification-storage";
 
 interface NotificationContextType {
   notifications: Notification[];
@@ -26,20 +29,36 @@ const NotificationContext = createContext<NotificationContextType | undefined>(
   undefined,
 );
 
-export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
+interface NotificationProviderProps {
+  children: React.ReactNode;
+  storage?: NotificationStorageClient;
+}
+
+export const NotificationProvider: React.FC<NotificationProviderProps> = ({
   children,
+  storage = notificationStorage,
 }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const notificationIdCounter = useRef(0);
+  const hasHydratedRef = useRef(false);
 
   // Load notifications from IndexedDB on mount
   useEffect(() => {
     const loadNotifications = async () => {
       try {
-        const saved = await notificationStorage.loadNotifications();
+        const saved = await storage.loadNotifications();
 
-        setNotifications(saved);
+        setNotifications((current) => {
+          // Only apply loaded data if state is still empty and saved has data
+          if (current.length === 0 && saved.length > 0) {
+            hasHydratedRef.current = true;
+
+            return saved;
+          }
+
+          return current;
+        });
       } catch {
         // Silent fail - start with empty notifications
       } finally {
@@ -48,22 +67,28 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
     };
 
     loadNotifications();
-  }, []);
+  }, [storage]);
 
   // Save notifications to IndexedDB whenever they change
   useEffect(() => {
     if (!isLoaded) return;
 
+    if (hasHydratedRef.current) {
+      hasHydratedRef.current = false;
+
+      return;
+    }
+
     const saveNotifications = async () => {
       try {
-        await notificationStorage.saveNotifications(notifications);
+        await storage.saveNotifications(notifications);
       } catch {
         // Silent fail - continue with in-memory notifications
       }
     };
 
     saveNotifications();
-  }, [notifications, isLoaded]);
+  }, [notifications, isLoaded, storage]);
 
   const addNotification = useCallback((input: NotificationInput): string => {
     const id = `notification-${Date.now()}-${notificationIdCounter.current++}`;
@@ -102,13 +127,13 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const clearAll = useCallback(async () => {
     try {
-      await notificationStorage.clearAll();
+      await storage.clearAll();
       setNotifications([]);
     } catch {
       // Silent fail - at least clear in-memory
       setNotifications([]);
     }
-  }, []);
+  }, [storage]);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
