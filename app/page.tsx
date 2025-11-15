@@ -132,17 +132,31 @@ export default function Home() {
         file.type.startsWith("image/") || file.type === "application/pdf",
     );
 
-    if (validFiles.length === 0) return;
+    // Handle invalid file uploads
+    if (validFiles.length === 0) {
+      // Clean up any existing URLs
+      fileUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+      fileUrlsRef.current = [];
+      setLiveMessage(
+        "No valid files uploaded. Only images and PDFs are accepted.",
+      );
 
-    // Clean up old URLs
-    fileUrls.forEach((url) => URL.revokeObjectURL(url));
+      return;
+    }
+
+    // Clean up old URLs from ref (not stale state)
+    fileUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
 
     // Create URLs for all files
     const urls = validFiles.map((file) => URL.createObjectURL(file));
 
+    // Update ref immediately after creating URLs
+    fileUrlsRef.current = urls;
+
+    // Reset failed PDF tracking for new files
+    setFailedPdfIndexes(new Set());
     setSelectedFiles(validFiles);
     setFileUrls(urls);
-    fileUrlsRef.current = urls;
     setCurrentFileIndex(0);
     setLiveMessage(`Viewing file 1 of ${validFiles.length}`);
   };
@@ -410,7 +424,8 @@ export default function Home() {
       clearAllHistory();
 
       // Revoke all file URLs to free memory
-      fileUrls.forEach((url) => URL.revokeObjectURL(url));
+      fileUrlsRef.current?.forEach((url) => URL.revokeObjectURL(url));
+      fileUrlsRef.current = [];
 
       // Reset state
       setHistoryItems([]);
@@ -458,7 +473,8 @@ export default function Home() {
 
   const handleClearImage = () => {
     // Revoke all file URLs to free memory
-    fileUrls.forEach((url) => URL.revokeObjectURL(url));
+    fileUrlsRef.current?.forEach((url) => URL.revokeObjectURL(url));
+    fileUrlsRef.current = [];
     setSelectedFiles([]);
     setFileUrls([]);
     setCurrentFileIndex(0);
@@ -730,16 +746,24 @@ export default function Home() {
                             style={{ height: "calc(82vh * 0.75)" }}
                           >
                             {file.type.startsWith("image/") ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img
-                                alt={`Preview of ${file.name} (${index + 1} of ${selectedFiles.length})`}
-                                src={fileUrls[index]}
-                                style={{
-                                  maxWidth: "100%",
-                                  maxHeight: "100%",
-                                  objectFit: "contain",
-                                }}
-                              />
+                              fileUrls[index] ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  alt={`Preview of ${file.name} (${index + 1} of ${selectedFiles.length})`}
+                                  src={fileUrls[index]}
+                                  style={{
+                                    maxWidth: "100%",
+                                    maxHeight: "100%",
+                                    objectFit: "contain",
+                                  }}
+                                />
+                              ) : (
+                                <div className="flex flex-col items-center justify-center gap-2 text-default-500">
+                                  <p className="text-sm">
+                                    No preview available
+                                  </p>
+                                </div>
+                              )
                             ) : failedPdfIndexes.has(index) ? (
                               <div
                                 aria-live="polite"

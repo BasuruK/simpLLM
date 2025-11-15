@@ -32,6 +32,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const notificationIdCounter = useRef(0);
+  const hasHydratedRef = useRef(false);
 
   // Load notifications from IndexedDB on mount
   useEffect(() => {
@@ -39,7 +40,14 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
       try {
         const saved = await notificationStorage.loadNotifications();
 
-        setNotifications(saved);
+        setNotifications((current) => {
+          // Only apply loaded data if state is still empty and saved has data
+          if (current.length === 0 && saved.length > 0) {
+            hasHydratedRef.current = true;
+            return saved;
+          }
+          return current;
+        });
       } catch {
         // Silent fail - start with empty notifications
       } finally {
@@ -54,6 +62,11 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     if (!isLoaded) return;
 
+    if (hasHydratedRef.current) {
+      hasHydratedRef.current = false;
+      return;
+    }
+
     const saveNotifications = async () => {
       try {
         await notificationStorage.saveNotifications(notifications);
@@ -66,6 +79,9 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [notifications, isLoaded]);
 
   const addNotification = useCallback((input: NotificationInput): string => {
+    // Clear hydration flag to ensure this change is persisted
+    hasHydratedRef.current = false;
+
     const id = `notification-${Date.now()}-${notificationIdCounter.current++}`;
     const newNotification: Notification = {
       id,
@@ -81,6 +97,9 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const updateNotification = useCallback(
     (id: string, updates: Partial<NotificationInput>) => {
+      // Clear hydration flag to ensure this change is persisted
+      hasHydratedRef.current = false;
+
       setNotifications((prev) =>
         prev.map((notification) =>
           notification.id === id
@@ -93,6 +112,9 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const markAsRead = useCallback((id: string) => {
+    // Clear hydration flag to ensure this change is persisted
+    hasHydratedRef.current = false;
+
     setNotifications((prev) =>
       prev.map((notification) =>
         notification.id === id ? { ...notification, read: true } : notification,
