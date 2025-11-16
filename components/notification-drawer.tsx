@@ -19,6 +19,7 @@ import { Button } from "@heroui/button";
 import { Card, CardHeader, CardBody } from "@heroui/card";
 import { Progress } from "@heroui/progress";
 import { Tooltip } from "@heroui/tooltip";
+import { Spinner } from "@heroui/spinner";
 
 import {
   NotificationIcon,
@@ -34,6 +35,7 @@ interface NotificationDrawerProps {
   notifications: Notification[];
   onClearAll?: () => void;
   onMarkAsRead?: (id: string) => void;
+  onRemove?: (id: string) => void;
 }
 
 export const NotificationDrawer = ({
@@ -42,6 +44,7 @@ export const NotificationDrawer = ({
   notifications,
   onClearAll,
   onMarkAsRead,
+  onRemove,
 }: NotificationDrawerProps) => {
   const [selectedNotification, setSelectedNotification] =
     useState<Notification | null>(null);
@@ -76,22 +79,10 @@ export const NotificationDrawer = ({
       onOpenChange={onOpenChange}
     >
       <DrawerContent>
-        {(onClose) => (
+        {() => (
           <>
             <DrawerHeader className="flex flex-col gap-1">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold">Notifications</h2>
-                {notifications.length > 0 && (
-                  <Button
-                    color="danger"
-                    size="sm"
-                    variant="light"
-                    onPress={onClearAll}
-                  >
-                    Clear All
-                  </Button>
-                )}
-              </div>
+              <h2 className="text-xl font-bold">Notifications</h2>
             </DrawerHeader>
             <DrawerBody>
               {notifications.length === 0 ? (
@@ -112,7 +103,7 @@ export const NotificationDrawer = ({
                   {notifications.map((notification) => (
                     <Card
                       key={notification.id}
-                      className={`${!notification.read ? "border-l-4 border-primary" : ""}`}
+                      className={`relative ${!notification.read ? "border-l-4 border-primary" : ""}`}
                     >
                       <CardHeader className="flex flex-col items-start gap-2 pb-2">
                         <div className="flex w-full items-start justify-between gap-2">
@@ -132,38 +123,56 @@ export const NotificationDrawer = ({
                               {notification.title}
                             </h3>
                           </div>
-                          <div className="flex items-center gap-2">
-                            {notification.failedFiles.length > 0 && (
-                              <Tooltip content="View error details">
-                                <Button
-                                  isIconOnly
-                                  className="min-w-unit-8 w-unit-8 h-unit-8"
-                                  color="danger"
-                                  size="sm"
-                                  variant="flat"
-                                  onPress={() => handleViewDetails(notification)}
-                                >
-                                  <InfoCircleIcon size={18} />
-                                </Button>
-                              </Tooltip>
-                            )}
-                            <div className="flex flex-col items-end gap-1">
-                              <span className="text-sm font-semibold text-primary">
-                                {formatCurrency(notification.totalCost)}
-                              </span>
-                              <span className="text-xs text-default-400">
-                                {formatDate(notification.timestamp)}
-                              </span>
-                            </div>
-                          </div>
+                          {notification.fileFailures.length > 0 && (
+                            <Tooltip content="View error details">
+                              <Button
+                                isIconOnly
+                                className="min-w-unit-8 w-unit-8 h-unit-8"
+                                color="danger"
+                                size="sm"
+                                variant="flat"
+                                onPress={() => handleViewDetails(notification)}
+                              >
+                                <InfoCircleIcon size={18} />
+                              </Button>
+                            </Tooltip>
+                          )}
                         </div>
                         <p className="text-sm text-default-600">
                           {notification.description}
                         </p>
+                        <div className="flex w-full items-center justify-between gap-2 mt-1">
+                          <div className="flex flex-col gap-1">
+                            <span className="text-sm font-semibold text-primary">
+                              {formatCurrency(notification.totalCost)}
+                            </span>
+                            <span className="text-xs text-default-400">
+                              {formatDate(notification.timestamp)}
+                            </span>
+                          </div>
+                        </div>
                       </CardHeader>
+                      {/* Close button positioned absolutely at top-right */}
+                      <Tooltip content="Close notification">
+                        <Button
+                          isIconOnly
+                          className="absolute top-2 right-2 min-w-unit-10 w-unit-10 h-unit-10 z-10"
+                          size="md"
+                          variant="light"
+                          onPress={() => onRemove?.(notification.id)}
+                        >
+                          <CloseCircleIcon size={20} />
+                        </Button>
+                      </Tooltip>
                       {notification.status === "processing" &&
                         notification.progress && (
                           <div className="w-full px-4 pb-3">
+                            <div className="flex items-center gap-3 mb-2">
+                              <Spinner color="default" size="sm" />
+                              <span className="text-sm text-default-600">
+                                Processing {notification.progress.current} of {notification.progress.total} files...
+                              </span>
+                            </div>
                             <Progress
                               aria-label="Processing progress"
                               classNames={{
@@ -205,27 +214,27 @@ export const NotificationDrawer = ({
                             </p>
                           </div>
                         </div>
-                        {notification.failedFiles.length > 0 && (
+                        {notification.fileFailures.length > 0 && (
                           <div className="mt-3 space-y-2">
                             <div className="flex items-center justify-between">
                               <p className="text-xs text-default-500">
-                                Failed ({notification.failedFiles.length}):
+                                Failed ({notification.fileFailures.length}):
                               </p>
                             </div>
                             <div className="flex flex-wrap gap-1">
-                              {notification.failedFiles
+                              {notification.fileFailures
                                 .slice(0, 5)
-                                .map((file, idx) => (
+                                .map((failure, idx) => (
                                   <span
                                     key={idx}
                                     className="text-xs bg-danger/10 text-danger px-2 py-1 rounded"
                                   >
-                                    {file}
+                                    {failure.fileName}
                                   </span>
                                 ))}
-                              {notification.failedFiles.length > 5 && (
+                              {notification.fileFailures.length > 5 && (
                                 <span className="text-xs text-default-400 px-2 py-1">
-                                  +{notification.failedFiles.length - 5} more
+                                  +{notification.fileFailures.length - 5} more
                                 </span>
                               )}
                             </div>
@@ -237,21 +246,24 @@ export const NotificationDrawer = ({
                 </div>
               )}
             </DrawerBody>
-            <DrawerFooter>
-              <Button color="primary" variant="light" onPress={onClose}>
-                Close
-              </Button>
-            </DrawerFooter>
+            {notifications.length > 0 && (
+              <DrawerFooter>
+                <Button
+                  color="danger"
+                  size="md"
+                  variant="bordered"
+                  onPress={onClearAll}
+                >
+                  Clear All
+                </Button>
+              </DrawerFooter>
+            )}
           </>
         )}
       </DrawerContent>
 
       {/* Details Modal */}
-      <Modal
-        isOpen={isDetailsOpen}
-        size="2xl"
-        onOpenChange={setIsDetailsOpen}
-      >
+      <Modal isOpen={isDetailsOpen} size="2xl" onOpenChange={setIsDetailsOpen}>
         <ModalContent>
           {(onClose) => (
             <>
@@ -289,7 +301,7 @@ export const NotificationDrawer = ({
                       <Card className="bg-danger-50 dark:bg-danger-100/10">
                         <CardBody className="text-center py-3">
                           <p className="text-2xl font-bold text-danger">
-                            {selectedNotification.failedFiles.length}
+                            {selectedNotification.fileFailures.length}
                           </p>
                           <p className="text-sm text-default-600">Failed</p>
                         </CardBody>

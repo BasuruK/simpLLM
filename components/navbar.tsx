@@ -67,8 +67,13 @@ export const Navbar = ({
     onOpen: onNotificationOpen,
     onOpenChange: onNotificationOpenChange,
   } = useDisclosure();
-  const { notifications, markAsRead, clearAll, unreadCount, addNotification } =
-    useNotifications();
+  const {
+    notifications,
+    markAsRead,
+    removeNotification,
+    clearAll,
+    unreadCount,
+  } = useNotifications();
 
   // Load developer mode from localStorage on mount
   useEffect(() => {
@@ -101,31 +106,6 @@ export const Navbar = ({
     );
   };
 
-  const handleAddDummyNotification = () => {
-    const randomSuccess = Math.floor(Math.random() * 10) + 1;
-    const randomFailed = Math.floor(Math.random() * 3);
-    const successFiles = Array.from(
-      { length: randomSuccess },
-      (_, i) => `invoice-${String(i + 1).padStart(3, "0")}.pdf`,
-    );
-    const failedFiles = Array.from(
-      { length: randomFailed },
-      (_, i) => `error-${String(i + 1).padStart(3, "0")}.pdf`,
-    );
-
-    addNotification({
-      title: "Invoice Processing Complete",
-      description:
-        randomFailed > 0
-          ? `Processed with ${randomFailed} error(s)`
-          : "Successfully processed all files",
-      itemsProcessed: randomSuccess + randomFailed,
-      totalCost: (randomSuccess + randomFailed) * 0.015,
-      successFiles,
-      failedFiles,
-    });
-  };
-
   const iconClasses = "text-xl text-default-500 pointer-events-none shrink-0";
 
   return (
@@ -150,16 +130,6 @@ export const Navbar = ({
       <NavbarContent justify="end">
         {username && (
           <>
-            <NavbarItem>
-              <Button
-                color="success"
-                size="sm"
-                variant="flat"
-                onPress={handleAddDummyNotification}
-              >
-                + Test Notification
-              </Button>
-            </NavbarItem>
             <NavbarItem>
               <Button
                 isIconOnly
@@ -340,6 +310,7 @@ export const Navbar = ({
         notifications={notifications}
         onClearAll={clearAll}
         onMarkAsRead={markAsRead}
+        onRemove={removeNotification}
         onOpenChange={onNotificationOpenChange}
       />
     </HeroUINavbar>
