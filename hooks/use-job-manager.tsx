@@ -1,0 +1,308 @@
+"use client";
+
+import { useState, useCallback, useRef } from "react";
+
+import { processBatch, BatchFileResult } from "@/lib/batch-processor";
+import { useNotifications } from "@/hooks/use-notifications";
+import { saveHistoryItem } from "@/lib/history-storage";
+import { saveFileBlob, generateThumbnail } from "@/lib/file-storage";
+
+/**
+ * Job state tracking
+ */
+export interface Job {
+  id: string;
+  files: File[];
+  status: "queued" | "processing" | "completed" | "failed";
+  progress: {
+    current: number;
+    total: number;
+  };
+  results: BatchFileResult[];
+  notificationId: string;
+  startTime: number;
+  endTime?: number;
+}
+
+interface UseJobManagerReturn {
+  jobs: Map<string, Job>;
+  activeJobCount: number;
+  startBatchJob: (files: File[]) => Promise<string>;
+  cancelJob: (jobId: string) => void;
+  getJob: (jobId: string) => Job | undefined;
+  clearCompletedJobs: () => void;
+}
+
+/**
+ * Hook to manage multiple concurrent extraction jobs
+ * Integrates with notification system for real-time updates
+ */
+export function useJobManager(): UseJobManagerReturn {
+  const [jobs, setJobs] = useState<Map<string, Job>>(new Map());
+  const { addNotification, updateNotification } = useNotifications();
+  const jobIdCounter = useRef(0);
+  const abortControllers = useRef<Map<string, AbortController>>(new Map());
+
+  // Count active jobs (queued or processing)
+  const activeJobCount = Array.from(jobs.values()).filter(
+    (job) => job.status === "queued" || job.status === "processing",
+  ).length;
+
+  /**
+   * Start a new batch job
+   */
+  const startBatchJob = useCallback(
+    async (files: File[]): Promise<string> => {
+      const jobId = `job-${Date.now()}-${jobIdCounter.current++}`;
+
+      // Create abort controller for this job
+      const abortController = new AbortController();
+
+      abortControllers.current.set(jobId, abortController);
+
+      // Create notification for this job
+      const notificationId = addNotification({
+        title: "Processing Files",
+        description: `Processing ${files.length} file${files.length > 1 ? "s" : ""}...`,
+        itemsProcessed: 0,
+        totalCost: 0,
+        successFiles: [],
+        failedFiles: [],
+        jobId,
+        status: "processing",
+        progress: {
+          current: 0,
+          total: files.length,
+        },
+      });
+
+      // Initialize job state
+      const job: Job = {
+        id: jobId,
+        files,
+        status: "processing",
+        progress: { current: 0, total: files.length },
+        results: [],
+        notificationId,
+        startTime: Date.now(),
+      };
+
+      setJobs((prev) => new Map(prev).set(jobId, job));
+
+      // Start processing in background
+      processBatch(files, {
+        maxConcurrent: 3,
+        onProgress: (completed, total, results) => {
+          // Calculate stats
+          const successFiles = results
+            .filter((r) => r?.status === "success")
+            .map((r) => r.file.name);
+          const failedFiles = results
+            .filter((r) => r?.status === "failed")
+            .map((r) => r.file.name);
+
+          // Capture detailed failure information
+          const fileFailures = results
+            .filter((r) => r?.status === "failed")
+            .map((r) => ({
+              fileName: r.file.name,
+              error: r.error || "Unknown error",
+            }));
+
+          const totalCost = results
+            .filter((r) => r?.status === "success")
+            .reduce((sum, r) => sum + (r.result?.usage.estimatedCost || 0), 0);
+
+          // Update job state
+          setJobs((prev) => {
+            const updated = new Map(prev);
+            const currentJob = updated.get(jobId);
+
+            if (currentJob) {
+              currentJob.progress = { current: completed, total };
+              currentJob.results = results;
+
+              if (completed === total) {
+                currentJob.status =
+                  failedFiles.length === total ? "failed" : "completed";
+                currentJob.endTime = Date.now();
+              }
+
+              updated.set(jobId, { ...currentJob });
+            }
+
+            return updated;
+          });
+
+          // Update notification
+          updateNotification(notificationId, {
+            description:
+              completed === total
+                ? `Completed: ${successFiles.length} succeeded, ${failedFiles.length} failed`
+                : `Processing ${completed} of ${total}...`,
+            itemsProcessed: completed,
+            totalCost,
+            successFiles,
+            failedFiles,
+            fileFailures,
+            status: completed === total ? "completed" : "processing",
+            progress: { current: completed, total },
+          });
+        },
+      })
+        .then(async () => {
+          // Save successful extractions to history
+          const job = jobs.get(jobId);
+
+          if (job) {
+            const successfulResults = job.results.filter(
+              (r) => r.status === "success" && r.result,
+            );
+
+            // Save each successful extraction
+            for (const result of successfulResults) {
+              try {
+                // Generate thumbnail
+                const thumbnail = await generateThumbnail(result.file);
+
+                // Parse JSON content
+                const parsedJson: unknown =
+                  typeof result.result?.data === "string"
+                    ? JSON.parse(result.result.data)
+                    : result.result?.data;
+
+                const fileType = result.file.type.startsWith("image/")
+                  ? "image"
+                  : "pdf";
+
+                // Save to history (only if we have usage data)
+                if (result.result?.usage) {
+                  const historyItem = saveHistoryItem({
+                    timestamp: Date.now(),
+                    filename: result.file.name,
+                    fileType: fileType,
+                    fileSize: result.file.size,
+                    extractedData:
+                      typeof result.result?.data === "string"
+                        ? result.result.data
+                        : JSON.stringify(result.result?.data, null, 2),
+                    jsonContent: parsedJson,
+                    usage: result.result.usage,
+                    starred: false,
+                    preview: thumbnail,
+                  });
+
+                  // Save file blob
+                  await saveFileBlob(historyItem.id, result.file);
+                }
+              } catch {
+                // Silently fail individual saves - don't block the batch completion
+              }
+            }
+          }
+
+          // Final state update on completion
+          setJobs((prev) => {
+            const updated = new Map(prev);
+            const job = updated.get(jobId);
+
+            if (job && job.status === "processing") {
+              job.status = "completed";
+              job.endTime = Date.now();
+              updated.set(jobId, { ...job });
+            }
+
+            return updated;
+          });
+        })
+        .catch((error) => {
+          // Handle job failure
+          setJobs((prev) => {
+            const updated = new Map(prev);
+            const job = updated.get(jobId);
+
+            if (job) {
+              job.status = "failed";
+              job.endTime = Date.now();
+              updated.set(jobId, { ...job });
+            }
+
+            return updated;
+          });
+
+          updateNotification(notificationId, {
+            description: `Job failed: ${error.message}`,
+            status: "failed",
+          });
+        })
+        .finally(() => {
+          // Cleanup abort controller
+          abortControllers.current.delete(jobId);
+        });
+
+      return jobId;
+    },
+    [addNotification, updateNotification],
+  );
+
+  /**
+   * Cancel a running job
+   */
+  const cancelJob = useCallback((jobId: string) => {
+    const controller = abortControllers.current.get(jobId);
+
+    if (controller) {
+      controller.abort();
+      abortControllers.current.delete(jobId);
+    }
+
+    setJobs((prev) => {
+      const updated = new Map(prev);
+      const job = updated.get(jobId);
+
+      if (job && job.status === "processing") {
+        job.status = "failed";
+        job.endTime = Date.now();
+        updated.set(jobId, { ...job });
+      }
+
+      return updated;
+    });
+  }, []);
+
+  /**
+   * Get a specific job
+   */
+  const getJob = useCallback(
+    (jobId: string): Job | undefined => {
+      return jobs.get(jobId);
+    },
+    [jobs],
+  );
+
+  /**
+   * Clear all completed jobs
+   */
+  const clearCompletedJobs = useCallback(() => {
+    setJobs((prev) => {
+      const updated = new Map(prev);
+
+      Array.from(updated.entries()).forEach(([jobId, job]) => {
+        if (job.status === "completed" || job.status === "failed") {
+          updated.delete(jobId);
+        }
+      });
+
+      return updated;
+    });
+  }, []);
+
+  return {
+    jobs,
+    activeJobCount,
+    startBatchJob,
+    cancelJob,
+    getJob,
+    clearCompletedJobs,
+  };
+}

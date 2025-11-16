@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   Drawer,
   DrawerContent,
@@ -7,10 +8,24 @@ import {
   DrawerBody,
   DrawerFooter,
 } from "@heroui/drawer";
+import {
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+} from "@heroui/modal";
 import { Button } from "@heroui/button";
 import { Card, CardHeader, CardBody } from "@heroui/card";
+import { Progress } from "@heroui/progress";
+import { Tooltip } from "@heroui/tooltip";
 
-import { NotificationIcon } from "@/components/icons";
+import {
+  NotificationIcon,
+  InfoCircleIcon,
+  CloseCircleIcon,
+  CheckIcon,
+} from "@/components/icons";
 import { Notification } from "@/types/notification";
 
 interface NotificationDrawerProps {
@@ -28,6 +43,10 @@ export const NotificationDrawer = ({
   onClearAll,
   onMarkAsRead,
 }: NotificationDrawerProps) => {
+  const [selectedNotification, setSelectedNotification] =
+    useState<Notification | null>(null);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
@@ -42,6 +61,11 @@ export const NotificationDrawer = ({
       hour: "2-digit",
       minute: "2-digit",
     }).format(new Date(date));
+  };
+
+  const handleViewDetails = (notification: Notification) => {
+    setSelectedNotification(notification);
+    setIsDetailsOpen(true);
   };
 
   return (
@@ -88,30 +112,84 @@ export const NotificationDrawer = ({
                   {notifications.map((notification) => (
                     <Card
                       key={notification.id}
-                      isPressable
                       className={`${!notification.read ? "border-l-4 border-primary" : ""}`}
-                      onPress={() => onMarkAsRead?.(notification.id)}
                     >
                       <CardHeader className="flex flex-col items-start gap-2 pb-2">
                         <div className="flex w-full items-start justify-between gap-2">
-                          <h3 className="text-lg font-semibold">
-                            {notification.title}
-                          </h3>
-                          <div className="flex flex-col items-end gap-1">
-                            <span className="text-sm font-semibold text-primary">
-                              {formatCurrency(notification.totalCost)}
-                            </span>
-                            <span className="text-xs text-default-400">
-                              {formatDate(notification.timestamp)}
-                            </span>
+                          <div
+                            className="flex-1 cursor-pointer"
+                            onClick={() => onMarkAsRead?.(notification.id)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                onMarkAsRead?.(notification.id);
+                              }
+                            }}
+                            role="button"
+                            tabIndex={0}
+                          >
+                            <h3 className="text-lg font-semibold">
+                              {notification.title}
+                            </h3>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {notification.failedFiles.length > 0 && (
+                              <Tooltip content="View error details">
+                                <Button
+                                  isIconOnly
+                                  className="min-w-unit-8 w-unit-8 h-unit-8"
+                                  color="danger"
+                                  size="sm"
+                                  variant="flat"
+                                  onPress={() => handleViewDetails(notification)}
+                                >
+                                  <InfoCircleIcon size={18} />
+                                </Button>
+                              </Tooltip>
+                            )}
+                            <div className="flex flex-col items-end gap-1">
+                              <span className="text-sm font-semibold text-primary">
+                                {formatCurrency(notification.totalCost)}
+                              </span>
+                              <span className="text-xs text-default-400">
+                                {formatDate(notification.timestamp)}
+                              </span>
+                            </div>
                           </div>
                         </div>
                         <p className="text-sm text-default-600">
                           {notification.description}
                         </p>
                       </CardHeader>
+                      {notification.status === "processing" &&
+                        notification.progress && (
+                          <div className="w-full px-4 pb-3">
+                            <Progress
+                              aria-label="Processing progress"
+                              classNames={{
+                                base: "w-full",
+                                track: "drop-shadow-md border border-default",
+                                indicator:
+                                  "bg-gradient-to-r from-primary-500 to-yellow-500",
+                                label:
+                                  "tracking-wider font-medium text-default-600",
+                                value: "text-foreground/60",
+                              }}
+                              color="primary"
+                              label={`${notification.progress.current} of ${notification.progress.total} files`}
+                              radius="sm"
+                              showValueLabel
+                              size="sm"
+                              value={
+                                (notification.progress.current /
+                                  notification.progress.total) *
+                                100
+                              }
+                            />
+                          </div>
+                        )}
                       <CardBody className="pt-0">
-                        <div className="grid grid-cols-3 gap-3 text-sm">
+                        <div className="grid grid-cols-2 gap-3 text-sm">
                           <div>
                             <p className="text-default-500">Total Files</p>
                             <p className="font-semibold">
@@ -124,36 +202,30 @@ export const NotificationDrawer = ({
                               {notification.successFiles.length}
                             </p>
                           </div>
-                          <div>
-                            <p className="text-default-500">Failed</p>
-                            <p className="font-semibold text-danger">
-                              {notification.failedFiles.length}
-                            </p>
-                          </div>
                         </div>
                         {notification.failedFiles.length > 0 && (
                           <div className="mt-3 space-y-2">
-                            <div>
-                              <p className="text-xs text-default-500 mb-1">
-                                Failed:
+                            <div className="flex items-center justify-between">
+                              <p className="text-xs text-default-500">
+                                Failed ({notification.failedFiles.length}):
                               </p>
-                              <div className="flex flex-wrap gap-1">
-                                {notification.failedFiles
-                                  .slice(0, 5)
-                                  .map((file, idx) => (
-                                    <span
-                                      key={idx}
-                                      className="text-xs bg-danger/10 text-danger px-2 py-1 rounded"
-                                    >
-                                      {file}
-                                    </span>
-                                  ))}
-                                {notification.failedFiles.length > 5 && (
-                                  <span className="text-xs text-default-400 px-2 py-1">
-                                    +{notification.failedFiles.length - 5} more
+                            </div>
+                            <div className="flex flex-wrap gap-1">
+                              {notification.failedFiles
+                                .slice(0, 5)
+                                .map((file, idx) => (
+                                  <span
+                                    key={idx}
+                                    className="text-xs bg-danger/10 text-danger px-2 py-1 rounded"
+                                  >
+                                    {file}
                                   </span>
-                                )}
-                              </div>
+                                ))}
+                              {notification.failedFiles.length > 5 && (
+                                <span className="text-xs text-default-400 px-2 py-1">
+                                  +{notification.failedFiles.length - 5} more
+                                </span>
+                              )}
                             </div>
                           </div>
                         )}
@@ -171,6 +243,143 @@ export const NotificationDrawer = ({
           </>
         )}
       </DrawerContent>
+
+      {/* Details Modal */}
+      <Modal
+        isOpen={isDetailsOpen}
+        size="2xl"
+        onOpenChange={setIsDetailsOpen}
+      >
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader className="flex flex-col gap-1">
+                <h2 className="text-xl font-bold">Job Details</h2>
+                {selectedNotification && (
+                  <p className="text-sm font-normal text-default-500">
+                    {formatDate(selectedNotification.timestamp)}
+                  </p>
+                )}
+              </ModalHeader>
+              <ModalBody>
+                {selectedNotification && (
+                  <div className="space-y-4">
+                    {/* Summary Stats */}
+                    <div className="grid grid-cols-3 gap-4">
+                      <Card className="bg-default-100">
+                        <CardBody className="text-center py-3">
+                          <p className="text-2xl font-bold">
+                            {selectedNotification.itemsProcessed}
+                          </p>
+                          <p className="text-sm text-default-600">
+                            Total Files
+                          </p>
+                        </CardBody>
+                      </Card>
+                      <Card className="bg-success-50 dark:bg-success-100/10">
+                        <CardBody className="text-center py-3">
+                          <p className="text-2xl font-bold text-success">
+                            {selectedNotification.successFiles.length}
+                          </p>
+                          <p className="text-sm text-default-600">Success</p>
+                        </CardBody>
+                      </Card>
+                      <Card className="bg-danger-50 dark:bg-danger-100/10">
+                        <CardBody className="text-center py-3">
+                          <p className="text-2xl font-bold text-danger">
+                            {selectedNotification.failedFiles.length}
+                          </p>
+                          <p className="text-sm text-default-600">Failed</p>
+                        </CardBody>
+                      </Card>
+                    </div>
+
+                    {/* Cost */}
+                    <Card>
+                      <CardBody className="py-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-default-600">Total Cost</span>
+                          <span className="text-xl font-bold text-primary">
+                            {formatCurrency(selectedNotification.totalCost)}
+                          </span>
+                        </div>
+                      </CardBody>
+                    </Card>
+
+                    {/* Failed Files Details */}
+                    {selectedNotification.fileFailures &&
+                      selectedNotification.fileFailures.length > 0 && (
+                        <div>
+                          <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                            <CloseCircleIcon className="text-danger" size={20} />
+                            Failed Files
+                          </h3>
+                          <div className="space-y-2 max-h-80 overflow-y-auto">
+                            {selectedNotification.fileFailures.map(
+                              (failure, idx) => (
+                                <Card
+                                  key={idx}
+                                  className="border-l-4 border-danger"
+                                >
+                                  <CardBody className="py-3">
+                                    <div className="space-y-2">
+                                      <p className="font-semibold text-sm">
+                                        {failure.fileName}
+                                      </p>
+                                      <div className="bg-danger-50 dark:bg-danger-100/10 rounded-lg p-3">
+                                        <p className="text-sm text-danger">
+                                          <span className="font-semibold">
+                                            Error:{" "}
+                                          </span>
+                                          {failure.error}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </CardBody>
+                                </Card>
+                              ),
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                    {/* Successful Files */}
+                    {selectedNotification.successFiles.length > 0 && (
+                      <div>
+                        <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                          <CheckIcon className="text-success" size={20} />
+                          Successful Files
+                        </h3>
+                        <Card>
+                          <CardBody>
+                            <div className="flex flex-wrap gap-2">
+                              {selectedNotification.successFiles.map(
+                                (file, idx) => (
+                                  <span
+                                    key={idx}
+                                    className="text-xs bg-success-50 dark:bg-success-100/10 text-success px-3 py-1.5 rounded-full"
+                                  >
+                                    {file}
+                                  </span>
+                                ),
+                              )}
+                            </div>
+                          </CardBody>
+                        </Card>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </ModalBody>
+              <ModalFooter>
+                <Button color="primary" onPress={onClose}>
+                  Close
+                </Button>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
     </Drawer>
   );
 };

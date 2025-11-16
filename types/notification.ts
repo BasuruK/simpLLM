@@ -1,3 +1,8 @@
+export interface FileFailure {
+  fileName: string;
+  error: string;
+}
+
 export interface Notification {
   id: string;
   title: string;
@@ -6,8 +11,15 @@ export interface Notification {
   totalCost: number;
   successFiles: string[];
   failedFiles: string[];
+  fileFailures?: FileFailure[];
   timestamp: Date;
   read: boolean;
+  jobId?: string;
+  status?: "processing" | "completed" | "failed";
+  progress?: {
+    current: number;
+    total: number;
+  };
 }
 
 export interface NotificationInput {
@@ -17,4 +29,11 @@ export interface NotificationInput {
   totalCost: number;
   successFiles: string[];
   failedFiles: string[];
+  fileFailures?: FileFailure[];
+  jobId?: string;
+  status?: "processing" | "completed" | "failed";
+  progress?: {
+    current: number;
+    total: number;
+  };
 }
