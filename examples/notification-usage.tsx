@@ -21,7 +21,7 @@ export function ExampleAddNotification() {
       itemsProcessed: 25,
       totalCost: 0.15,
       successFiles: ["invoice-001.pdf", "invoice-002.pdf", "invoice-003.pdf"],
-      failedFiles: [],
+      fileFailures: [],
     });
 
     console.log("Created notification with ID:", notificationId);
@@ -43,7 +43,10 @@ export function ExampleWithFailures() {
       itemsProcessed: 10,
       totalCost: 0.08,
       successFiles: ["file1.pdf", "file2.pdf", "file3.pdf"],
-      failedFiles: ["corrupted.pdf", "invalid-format.pdf"],
+      fileFailures: [
+        { fileName: "corrupted.pdf", error: "File is corrupted or unreadable" },
+        { fileName: "invalid-format.pdf", error: "Invalid file format" },
+      ],
     });
   };
 
@@ -64,7 +67,7 @@ export function ExampleUpdateNotification() {
       itemsProcessed: 0,
       totalCost: 0,
       successFiles: [],
-      failedFiles: [],
+      fileFailures: [],
     });
 
     // Simulate processing
@@ -94,7 +97,7 @@ export function ExampleUpdateNotification() {
         "file4.pdf",
         "file5.pdf",
       ],
-      failedFiles: [],
+      fileFailures: [],
     });
   };
 
@@ -126,7 +129,7 @@ export function ExampleFullFeatures() {
       itemsProcessed: 5,
       totalCost: 0.03,
       successFiles: ["a.pdf", "b.pdf"],
-      failedFiles: [],
+      fileFailures: [],
     });
 
     addNotification({
@@ -135,7 +138,7 @@ export function ExampleFullFeatures() {
       itemsProcessed: 3,
       totalCost: 0.02,
       successFiles: ["c.pdf"],
-      failedFiles: ["d.pdf"],
+      fileFailures: [{ fileName: "d.pdf", error: "Processing failed" }],
     });
   };
 
@@ -170,11 +173,11 @@ export function ExampleRealWorld() {
       itemsProcessed: 0,
       totalCost: 0,
       successFiles: [],
-      failedFiles: [],
+      fileFailures: [],
     });
 
     const successFiles: string[] = [];
-    const failedFiles: string[] = [];
+    const fileFailures: Array<{ fileName: string; error: string }> = [];
     let totalCost = 0;
 
     for (let i = 0; i < files.length; i++) {
@@ -190,13 +193,16 @@ export function ExampleRealWorld() {
           itemsProcessed: i + 1,
           totalCost,
           successFiles: [...successFiles],
-          failedFiles: [...failedFiles],
+          fileFailures: [...fileFailures],
         });
       } catch (error) {
-        failedFiles.push(files[i].name);
+        fileFailures.push({
+          fileName: files[i].name,
+          error: error instanceof Error ? error.message : "Unknown error",
+        });
         updateNotification(notificationId, {
           itemsProcessed: i + 1,
-          failedFiles: [...failedFiles],
+          fileFailures: [...fileFailures],
         });
       }
     }
@@ -205,13 +211,13 @@ export function ExampleRealWorld() {
     updateNotification(notificationId, {
       title: "Processing Complete",
       description:
-        failedFiles.length > 0
-          ? `Completed with ${failedFiles.length} error(s)`
+        fileFailures.length > 0
+          ? `Completed with ${fileFailures.length} error(s)`
           : "All files processed successfully",
       itemsProcessed: files.length,
       totalCost,
       successFiles,
-      failedFiles,
+      fileFailures,
     });
   };
 

@@ -134,7 +134,7 @@ export default function Home() {
     }
   };
 
-  const processFiles = (files: File[], processInBackground = false) => {
+  const processFiles = async (files: File[], processInBackground = false) => {
     // Filter valid files (images and PDFs)
     const validFiles = files.filter(
       (file) =>
@@ -160,27 +160,49 @@ export default function Home() {
 
     // If multiple files and background processing requested
     if (validFiles.length > 1 && processInBackground) {
-      // Start batch job in background
-      startBatchJob(validFiles);
+      // Start batch job in background with error handling
+      try {
+        await startBatchJob(validFiles);
 
-      // Show confirmation message
-      setLiveMessage(
-        `Started background processing of ${validFiles.length} files. Check notifications for progress.`,
-      );
+        // Show confirmation message only on success
+        setLiveMessage(
+          `Started background processing of ${validFiles.length} files. Check notifications for progress.`,
+        );
 
-      // Show toast notification
-      setShowBatchNotification(true);
+        // Show toast notification
+        setShowBatchNotification(true);
 
-      // Clear any existing timeout
-      if (batchNotificationTimeoutRef.current) {
-        clearTimeout(batchNotificationTimeoutRef.current);
-      }
+        // Clear any existing timeout
+        if (batchNotificationTimeoutRef.current) {
+          clearTimeout(batchNotificationTimeoutRef.current);
+        }
 
-      // Auto-hide after 5 seconds
-      batchNotificationTimeoutRef.current = setTimeout(() => {
+        // Auto-hide after 5 seconds
+        batchNotificationTimeoutRef.current = setTimeout(() => {
+          setShowBatchNotification(false);
+          batchNotificationTimeoutRef.current = null;
+        }, 5000);
+      } catch (error) {
+        // Log the error for debugging
+        console.error("Failed to start batch job:", error);
+
+        // Set error message for screen readers and UI
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : "Failed to start background processing";
+
+        setLiveMessage(`Error: ${errorMessage}`);
+
+        // Ensure notification stays hidden on error
         setShowBatchNotification(false);
-        batchNotificationTimeoutRef.current = null;
-      }, 5000);
+
+        // Clear any existing timeout
+        if (batchNotificationTimeoutRef.current) {
+          clearTimeout(batchNotificationTimeoutRef.current);
+          batchNotificationTimeoutRef.current = null;
+        }
+      }
 
       return;
     }
@@ -299,6 +321,11 @@ export default function Home() {
       // Clear save success timeout on unmount
       if (saveSuccessTimeoutRef.current) {
         clearTimeout(saveSuccessTimeoutRef.current);
+      }
+      // Clear batch notification timeout on unmount
+      if (batchNotificationTimeoutRef.current) {
+        clearTimeout(batchNotificationTimeoutRef.current);
+        batchNotificationTimeoutRef.current = null;
       }
     };
   }, []);

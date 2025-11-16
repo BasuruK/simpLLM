@@ -24,7 +24,7 @@ export interface Job {
   endTime?: number;
 }
 
-interface UseJobManagerReturn {
+export interface UseJobManagerReturn {
   jobs: Map<string, Job>;
   activeJobCount: number;
   startBatchJob: (files: File[]) => Promise<string>;
@@ -33,7 +33,7 @@ interface UseJobManagerReturn {
   clearCompletedJobs: () => void;
 }
 
-interface UseJobManagerOptions {
+export interface UseJobManagerOptions {
   onJobComplete?: (jobId: string) => void;
 }
 
@@ -71,7 +71,7 @@ export function useJobManager(options?: UseJobManagerOptions): UseJobManagerRetu
         itemsProcessed: 0,
         totalCost: 0,
         successFiles: [],
-        failedFiles: [],
+        fileFailures: [],
         jobId,
         status: "processing",
         progress: {
@@ -101,9 +101,6 @@ export function useJobManager(options?: UseJobManagerOptions): UseJobManagerRetu
           const successFiles = results
             .filter((r) => r?.status === "success")
             .map((r) => r.file.name);
-          const failedFiles = results
-            .filter((r) => r?.status === "failed")
-            .map((r) => r.file.name);
 
           // Capture detailed failure information
           const fileFailures = results
@@ -128,7 +125,7 @@ export function useJobManager(options?: UseJobManagerOptions): UseJobManagerRetu
 
               if (completed === total) {
                 currentJob.status =
-                  failedFiles.length === total ? "failed" : "completed";
+                  fileFailures.length === total ? "failed" : "completed";
                 currentJob.endTime = Date.now();
               }
 
@@ -142,12 +139,11 @@ export function useJobManager(options?: UseJobManagerOptions): UseJobManagerRetu
           updateNotification(notificationId, {
             description:
               completed === total
-                ? `Completed: ${successFiles.length} succeeded, ${failedFiles.length} failed`
+                ? `Completed: ${successFiles.length} succeeded, ${fileFailures.length} failed`
                 : `Processing ${completed} of ${total}...`,
             itemsProcessed: completed,
             totalCost,
             successFiles,
-            failedFiles,
             fileFailures,
             status: completed === total ? "completed" : "processing",
             progress: { current: completed, total },
@@ -299,7 +295,7 @@ export function useJobManager(options?: UseJobManagerOptions): UseJobManagerRetu
       const updated = new Map(prev);
       const job = updated.get(jobId);
 
-      if (job && job.status === "processing") {
+      if (job && (job.status === "processing" || job.status === "queued")) {
         job.status = "failed";
         job.endTime = Date.now();
         updated.set(jobId, { ...job });

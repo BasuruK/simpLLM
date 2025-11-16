@@ -10,8 +10,7 @@ export interface Notification {
   itemsProcessed: number;
   totalCost: number;
   successFiles: string[];
-  failedFiles: string[];
-  fileFailures?: FileFailure[];
+  fileFailures: FileFailure[];
   timestamp: Date;
   read: boolean;
   jobId?: string;
@@ -28,8 +27,7 @@ export interface NotificationInput {
   itemsProcessed: number;
   totalCost: number;
   successFiles: string[];
-  failedFiles: string[];
-  fileFailures?: FileFailure[];
+  fileFailures: FileFailure[];
   jobId?: string;
   status?: "processing" | "completed" | "failed";
   progress?: {
