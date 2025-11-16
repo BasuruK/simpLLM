@@ -67,8 +67,14 @@ export const Navbar = ({
     onOpen: onNotificationOpen,
     onOpenChange: onNotificationOpenChange,
   } = useDisclosure();
-  const { notifications, markAsRead, clearAll, unreadCount, addNotification } =
-    useNotifications();
+  const {
+    notifications,
+    markAsRead,
+    removeNotification,
+    clearAll,
+    unreadCount,
+    addNotification,
+  } = useNotifications();
 
   // Load developer mode from localStorage on mount
   useEffect(() => {
@@ -340,6 +346,7 @@ export const Navbar = ({
         notifications={notifications}
         onClearAll={clearAll}
         onMarkAsRead={markAsRead}
+        onRemove={removeNotification}
         onOpenChange={onNotificationOpenChange}
       />
     </HeroUINavbar>

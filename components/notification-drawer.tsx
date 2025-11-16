@@ -6,7 +6,6 @@ import {
   DrawerContent,
   DrawerHeader,
   DrawerBody,
-  DrawerFooter,
 } from "@heroui/drawer";
 import {
   Modal,
@@ -19,6 +18,7 @@ import { Button } from "@heroui/button";
 import { Card, CardHeader, CardBody } from "@heroui/card";
 import { Progress } from "@heroui/progress";
 import { Tooltip } from "@heroui/tooltip";
+import { Spinner } from "@heroui/spinner";
 
 import {
   NotificationIcon,
@@ -34,6 +34,7 @@ interface NotificationDrawerProps {
   notifications: Notification[];
   onClearAll?: () => void;
   onMarkAsRead?: (id: string) => void;
+  onRemove?: (id: string) => void;
 }
 
 export const NotificationDrawer = ({
@@ -42,6 +43,7 @@ export const NotificationDrawer = ({
   notifications,
   onClearAll,
   onMarkAsRead,
+  onRemove,
 }: NotificationDrawerProps) => {
   const [selectedNotification, setSelectedNotification] =
     useState<Notification | null>(null);
@@ -76,22 +78,10 @@ export const NotificationDrawer = ({
       onOpenChange={onOpenChange}
     >
       <DrawerContent>
-        {(onClose) => (
+        {() => (
           <>
             <DrawerHeader className="flex flex-col gap-1">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold">Notifications</h2>
-                {notifications.length > 0 && (
-                  <Button
-                    color="danger"
-                    size="sm"
-                    variant="light"
-                    onPress={onClearAll}
-                  >
-                    Clear All
-                  </Button>
-                )}
-              </div>
+              <h2 className="text-xl font-bold">Notifications</h2>
             </DrawerHeader>
             <DrawerBody>
               {notifications.length === 0 ? (
@@ -132,38 +122,55 @@ export const NotificationDrawer = ({
                               {notification.title}
                             </h3>
                           </div>
-                          <div className="flex items-center gap-2">
-                            {notification.failedFiles.length > 0 && (
-                              <Tooltip content="View error details">
-                                <Button
-                                  isIconOnly
-                                  className="min-w-unit-8 w-unit-8 h-unit-8"
-                                  color="danger"
-                                  size="sm"
-                                  variant="flat"
-                                  onPress={() => handleViewDetails(notification)}
-                                >
-                                  <InfoCircleIcon size={18} />
-                                </Button>
-                              </Tooltip>
-                            )}
-                            <div className="flex flex-col items-end gap-1">
-                              <span className="text-sm font-semibold text-primary">
-                                {formatCurrency(notification.totalCost)}
-                              </span>
-                              <span className="text-xs text-default-400">
-                                {formatDate(notification.timestamp)}
-                              </span>
-                            </div>
-                          </div>
+                          {notification.failedFiles.length > 0 && (
+                            <Tooltip content="View error details">
+                              <Button
+                                isIconOnly
+                                className="min-w-unit-8 w-unit-8 h-unit-8"
+                                color="danger"
+                                size="sm"
+                                variant="flat"
+                                onPress={() => handleViewDetails(notification)}
+                              >
+                                <InfoCircleIcon size={18} />
+                              </Button>
+                            </Tooltip>
+                          )}
                         </div>
                         <p className="text-sm text-default-600">
                           {notification.description}
                         </p>
+                        <div className="flex w-full items-center justify-between gap-2 mt-1">
+                          <div className="flex flex-col gap-1">
+                            <span className="text-sm font-semibold text-primary">
+                              {formatCurrency(notification.totalCost)}
+                            </span>
+                            <span className="text-xs text-default-400">
+                              {formatDate(notification.timestamp)}
+                            </span>
+                          </div>
+                          <Tooltip content="Close notification">
+                            <Button
+                              isIconOnly
+                              className="min-w-unit-10 w-unit-10 h-unit-10 -mt-40 -mr-3"
+                              size="md"
+                              variant="light"
+                              onPress={() => onRemove?.(notification.id)}
+                            >
+                              <CloseCircleIcon size={20} />
+                            </Button>
+                          </Tooltip>
+                        </div>
                       </CardHeader>
                       {notification.status === "processing" &&
                         notification.progress && (
                           <div className="w-full px-4 pb-3">
+                            <div className="flex items-center gap-3 mb-2">
+                              <Spinner color="default" size="sm" />
+                              <span className="text-sm text-default-600">
+                                Processing {notification.progress.current} of {notification.progress.total} files...
+                              </span>
+                            </div>
                             <Progress
                               aria-label="Processing progress"
                               classNames={{
@@ -237,21 +244,24 @@ export const NotificationDrawer = ({
                 </div>
               )}
             </DrawerBody>
-            <DrawerFooter>
-              <Button color="primary" variant="light" onPress={onClose}>
-                Close
-              </Button>
-            </DrawerFooter>
+            {notifications.length > 0 && (
+              <div className="fixed bottom-4 right-4 z-50">
+                <Button
+                  color="danger"
+                  size="md"
+                  variant="bordered"
+                  onPress={onClearAll}
+                >
+                  Clear All
+                </Button>
+              </div>
+            )}
           </>
         )}
       </DrawerContent>
 
       {/* Details Modal */}
-      <Modal
-        isOpen={isDetailsOpen}
-        size="2xl"
-        onOpenChange={setIsDetailsOpen}
-      >
+      <Modal isOpen={isDetailsOpen} size="2xl" onOpenChange={setIsDetailsOpen}>
         <ModalContent>
           {(onClose) => (
             <>
