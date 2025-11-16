@@ -119,7 +119,12 @@ export default function Home() {
     onOpen: onClearModalOpen,
     onOpenChange: onClearModalOpenChange,
   } = useDisclosure();
-  const { startBatchJob, activeJobCount } = useJobManager();
+  const { startBatchJob, activeJobCount } = useJobManager({
+    onJobComplete: () => {
+      // Refresh history when batch job completes
+      setHistoryItems(getHistoryItems());
+    },
+  });
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -700,7 +705,12 @@ export default function Home() {
 
       {/* Batch Processing Notification */}
       {showBatchNotification && (
-        <div className="fixed top-20 right-4 z-50 w-full max-w-md">
+        <div
+          aria-atomic="true"
+          aria-live="polite"
+          className="fixed top-20 right-4 z-50 w-full max-w-md"
+          role="status"
+        >
           <Alert
             color="primary"
             description="Your files are being processed in the background. Status can be viewed in the notifications."

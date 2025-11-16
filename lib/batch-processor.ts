@@ -23,14 +23,17 @@ export type BatchProgressCallback = (
  * Rate limiter to control concurrent API requests
  */
 class RateLimiter {
-  private queue: Array<() => Promise<void>> = [];
   private running = 0;
+  private queue: Array<() => void> = [];
 
   constructor(private maxConcurrent: number) {}
 
   async add<T>(fn: () => Promise<T>): Promise<T> {
-    while (this.running >= this.maxConcurrent) {
-      await new Promise((resolve) => setTimeout(resolve, 100));
+    // Wait if we've reached max concurrent limit
+    if (this.running >= this.maxConcurrent) {
+      await new Promise<void>((resolve) => {
+        this.queue.push(resolve);
+      });
     }
 
     this.running++;
@@ -38,13 +41,18 @@ class RateLimiter {
       return await fn();
     } finally {
       this.running--;
+      // Process next queued task if any
+      const nextResolver = this.queue.shift();
+      if (nextResolver) {
+        nextResolver();
+      }
     }
   }
 }
 
 /**
  * Process multiple files concurrently with rate limiting
- * Reuses extractDataFromFile from /lib/openai.ts
+ * Uses extractDataFromFileNonStreaming from /lib/openai.ts
  */
 export async function processBatch(
   files: File[],

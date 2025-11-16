@@ -33,11 +33,15 @@ interface UseJobManagerReturn {
   clearCompletedJobs: () => void;
 }
 
+interface UseJobManagerOptions {
+  onJobComplete?: (jobId: string) => void;
+}
+
 /**
  * Hook to manage multiple concurrent extraction jobs
  * Integrates with notification system for real-time updates
  */
-export function useJobManager(): UseJobManagerReturn {
+export function useJobManager(options?: UseJobManagerOptions): UseJobManagerReturn {
   const [jobs, setJobs] = useState<Map<string, Job>>(new Map());
   const { addNotification, updateNotification } = useNotifications();
   const jobIdCounter = useRef(0);
@@ -150,54 +154,77 @@ export function useJobManager(): UseJobManagerReturn {
           });
         },
       })
-        .then(async () => {
+        .then(async (batchResults) => {
           // Save successful extractions to history
-          const job = jobs.get(jobId);
+          const successfulResults = batchResults.filter(
+            (r) => r.status === "success" && r.result,
+          );
 
-          if (job) {
-            const successfulResults = job.results.filter(
-              (r) => r.status === "success" && r.result,
-            );
+          // Save each successful extraction
+          for (const result of successfulResults) {
+            try {
+              // Generate thumbnail
+              const thumbnail = await generateThumbnail(result.file);
 
-            // Save each successful extraction
-            for (const result of successfulResults) {
-              try {
-                // Generate thumbnail
-                const thumbnail = await generateThumbnail(result.file);
+              const fileType = result.file.type.startsWith("image/")
+                ? "image"
+                : "pdf";
 
-                // Parse JSON content
-                const parsedJson: unknown =
-                  typeof result.result?.data === "string"
-                    ? JSON.parse(result.result.data)
-                    : result.result?.data;
+              // Process the extracted data similar to single file extraction
+              let extractedData: string;
+              let parsedJson: unknown;
 
-                const fileType = result.file.type.startsWith("image/")
-                  ? "image"
-                  : "pdf";
+              if (result.result?.data) {
+                // Clean up the response - remove "text" wrapper if present
+                let cleanedResult = result.result.data;
 
-                // Save to history (only if we have usage data)
-                if (result.result?.usage) {
-                  const historyItem = saveHistoryItem({
-                    timestamp: Date.now(),
-                    filename: result.file.name,
-                    fileType: fileType,
-                    fileSize: result.file.size,
-                    extractedData:
-                      typeof result.result?.data === "string"
-                        ? result.result.data
-                        : JSON.stringify(result.result?.data, null, 2),
-                    jsonContent: parsedJson,
-                    usage: result.result.usage,
-                    starred: false,
-                    preview: thumbnail,
-                  });
-
-                  // Save file blob
-                  await saveFileBlob(historyItem.id, result.file);
+                if (
+                  typeof result.result.data === "object" &&
+                  result.result.data !== null &&
+                  "text" in result.result.data
+                ) {
+                  cleanedResult = (result.result.data as { text: unknown })
+                    .text;
                 }
-              } catch {
-                // Silently fail individual saves - don't block the batch completion
+
+                // Convert to string if it's an object
+                extractedData =
+                  typeof cleanedResult === "string"
+                    ? cleanedResult
+                    : JSON.stringify(cleanedResult, null, 2);
+
+                // Parse JSON content for jsonContent field
+                try {
+                  parsedJson =
+                    typeof extractedData === "string"
+                      ? JSON.parse(extractedData)
+                      : extractedData;
+                } catch {
+                  parsedJson = null;
+                }
+              } else {
+                continue; // Skip if no data
               }
+
+              // Save to history (only if we have usage data)
+              if (result.result?.usage) {
+                const historyItem = saveHistoryItem({
+                  timestamp: Date.now(),
+                  filename: result.file.name,
+                  fileType: fileType,
+                  fileSize: result.file.size,
+                  extractedData: extractedData,
+                  jsonContent: parsedJson,
+                  usage: result.result.usage,
+                  starred: false,
+                  preview: thumbnail,
+                });
+
+                // Save file blob
+                await saveFileBlob(historyItem.id, result.file);
+              }
+            } catch {
+              // Silently fail individual saves - don't block the batch completion
             }
           }
 
@@ -214,8 +241,20 @@ export function useJobManager(): UseJobManagerReturn {
 
             return updated;
           });
+
+          // Notify parent that job completed
+          if (options?.onJobComplete) {
+            options.onJobComplete(jobId);
+          }
         })
         .catch((error) => {
+          // Safely derive error message
+          const errorMessage =
+            error instanceof Error ? error.message : String(error || "Unknown error");
+
+          // Log raw error for debugging
+          console.error("Batch job failed:", error);
+
           // Handle job failure
           setJobs((prev) => {
             const updated = new Map(prev);
@@ -231,7 +270,7 @@ export function useJobManager(): UseJobManagerReturn {
           });
 
           updateNotification(notificationId, {
-            description: `Job failed: ${error.message}`,
+            description: `Job failed: ${errorMessage}`,
             status: "failed",
           });
         })

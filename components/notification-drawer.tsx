@@ -181,9 +181,11 @@ export const NotificationDrawer = ({
                               showValueLabel
                               size="sm"
                               value={
-                                (notification.progress.current /
-                                  notification.progress.total) *
-                                100
+                                notification.progress.total > 0
+                                  ? (notification.progress.current /
+                                      notification.progress.total) *
+                                    100
+                                  : 0
                               }
                             />
                           </div>
