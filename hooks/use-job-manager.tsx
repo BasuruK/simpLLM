@@ -8,12 +8,72 @@ import { saveHistoryItem } from "@/lib/history-storage";
 import { saveFileBlob, generateThumbnail } from "@/lib/file-storage";
 
 /**
+ * Normalize extracted data by unwrapping text wrappers, converting to string, and parsing JSON
+ * @param data - The raw extracted data from the API
+ * @param context - Context information for error logging (jobId, fileName)
+ * @returns Normalized data with text string and parsed JSON, or null if no data
+ */
+function normalizeExtractedData(
+  data: unknown,
+  context?: { jobId: string; fileName: string },
+): { text: string; parsed: unknown } | null {
+  if (!data) return null;
+
+  // Unwrap "text" wrapper if present
+  let cleaned: unknown = data;
+
+  if (typeof data === "object" && data !== null && "text" in data) {
+    cleaned = (data as Record<string, unknown>).text;
+  }
+
+  // Convert to string
+  const text =
+    typeof cleaned === "string" ? cleaned : JSON.stringify(cleaned, null, 2);
+
+  // Parse JSON with error logging
+  let parsed: unknown;
+
+  try {
+    parsed = typeof text === "string" ? JSON.parse(text) : text;
+  } catch (err) {
+    if (context) {
+      console.error(
+        `JSON parse error for job ${context.jobId}, file ${context.fileName}:`,
+        err,
+        "\nRaw data:",
+        text?.substring(0, 500),
+      );
+    }
+    parsed = null;
+  }
+
+  return { text, parsed };
+}
+
+/**
+ * Robustly detect if an error is an abort/cancellation error.
+ */
+const isAbortCancellation = (error: unknown): boolean => {
+  if (!error) return false;
+  // Check for standard AbortError type
+  if (typeof error === "object" && error !== null && "name" in error) {
+    // @ts-ignore
+    if ((error as { name?: string }).name === "AbortError") return true;
+  }
+  // Fallback: check if error message contains "abort"
+  if (typeof error === "string" && error.toLowerCase().includes("abort")) {
+    return true;
+  }
+  return false;
+};
+
+/**
  * Job state tracking
  */
 export interface Job {
   id: string;
   files: File[];
-  status: "queued" | "processing" | "completed" | "failed";
+  status: "queued" | "processing" | "completed" | "failed" | "cancelled";
   progress: {
     current: number;
     total: number;
@@ -67,6 +127,7 @@ export function useJobManager(options?: UseJobManagerOptions): UseJobManagerRetu
           totalCost: 0,
           successFiles: [],
           fileFailures: [],
+          cancelledFiles: [],
           jobId,
           status: "completed",
           progress: { current: 0, total: 0 },
@@ -100,7 +161,7 @@ export function useJobManager(options?: UseJobManagerOptions): UseJobManagerRetu
 
       abortControllers.current.set(jobId, abortController);
 
-      // Create notification for this job
+      // Create notification for this job with processing status
       const notificationId = addNotification({
         title: "Processing Files",
         description: `Processing ${files.length} file${files.length > 1 ? "s" : ""}...`,
@@ -108,19 +169,20 @@ export function useJobManager(options?: UseJobManagerOptions): UseJobManagerRetu
         totalCost: 0,
         successFiles: [],
         fileFailures: [],
+        cancelledFiles: [],
         jobId,
-        status: "queued",
+        status: "processing",
         progress: {
           current: 0,
           total: files.length,
         },
       });
 
-      // Initialize job state
+      // Initialize job state as processing (single state update)
       const job: Job = {
         id: jobId,
         files,
-        status: "queued",
+        status: "processing",
         progress: { current: 0, total: files.length },
         results: [],
         notificationId,
@@ -128,24 +190,6 @@ export function useJobManager(options?: UseJobManagerOptions): UseJobManagerRetu
       };
 
       setJobs((prev) => new Map(prev).set(jobId, job));
-
-      // Transition to processing when batch actually starts
-      setJobs((prev) => {
-        const updated = new Map(prev);
-        const currentJob = updated.get(jobId);
-
-        if (currentJob) {
-          currentJob.status = "processing";
-          updated.set(jobId, { ...currentJob });
-        }
-
-        return updated;
-      });
-
-      // Update notification to processing status
-      updateNotification(notificationId, {
-        status: "processing",
-      });
 
       // Start processing in background
       processBatch(files, {
@@ -157,12 +201,23 @@ export function useJobManager(options?: UseJobManagerOptions): UseJobManagerRetu
             .filter((r) => r?.status === "success")
             .map((r) => r.file.name);
 
-          // Capture detailed failure information
+          // Separate failed files from cancelled files
           const fileFailures = results
-            .filter((r) => r?.status === "failed")
+            .filter((r) => r?.status === "failed" && !isAbortCancellation(r.error))
             .map((r) => ({
               fileName: r.file.name,
               error: r.error || "Unknown error",
+            }));
+
+          const cancelledFiles = results
+            .filter(
+              (r) =>
+                r?.status === "cancelled" ||
+                (r?.status === "failed" && isAbortCancellation(r.error)),
+            )
+            .map((r) => ({
+              fileName: r.file.name,
+              reason: r.error || "Job was cancelled",
             }));
 
           const totalCost = results
@@ -179,8 +234,9 @@ export function useJobManager(options?: UseJobManagerOptions): UseJobManagerRetu
               currentJob.results = results;
 
               if (completed === total) {
+                const totalFailures = fileFailures.length + cancelledFiles.length;
                 currentJob.status =
-                  fileFailures.length === total ? "failed" : "completed";
+                  totalFailures === total ? "failed" : "completed";
                 currentJob.endTime = Date.now();
               }
 
@@ -192,22 +248,27 @@ export function useJobManager(options?: UseJobManagerOptions): UseJobManagerRetu
 
           // Derive notification status to match job status logic
           let notificationStatus: "queued" | "processing" | "completed" | "failed";
+          const totalFailures = fileFailures.length + cancelledFiles.length;
           if (completed === total) {
-            notificationStatus = fileFailures.length === total ? "failed" : "completed";
+            notificationStatus = totalFailures === total ? "failed" : "completed";
           } else {
             notificationStatus = "processing";
           }
 
+          // Build description (show progress text only while running)
+          const description =
+            completed === total
+              ? ""
+              : `Processing ${completed} of ${total}...`;
+
           // Update notification
           updateNotification(notificationId, {
-            description:
-              completed === total
-                ? `Completed: ${successFiles.length} succeeded, ${fileFailures.length} failed`
-                : `Processing ${completed} of ${total}...`,
+            description,
             itemsProcessed: completed,
             totalCost,
             successFiles,
             fileFailures,
+            cancelledFiles,
             status: notificationStatus,
             progress: { current: completed, total },
           });
@@ -230,47 +291,17 @@ export function useJobManager(options?: UseJobManagerOptions): UseJobManagerRetu
                 ? "image"
                 : "pdf";
 
-              // Process the extracted data similar to single file extraction
-              let extractedData: string;
-              let parsedJson: unknown;
+              // Process the extracted data using normalization utility
+              const normalized = normalizeExtractedData(result.result?.data, {
+                jobId,
+                fileName: result.file.name,
+              });
 
-              if (result.result?.data) {
-                // Clean up the response - remove "text" wrapper if present
-                let cleanedResult = result.result.data;
-
-                if (
-                  typeof result.result.data === "object" &&
-                  result.result.data !== null &&
-                  "text" in result.result.data
-                ) {
-                  cleanedResult = (result.result.data as { text: unknown })
-                    .text;
-                }
-
-                // Convert to string if it's an object
-                extractedData =
-                  typeof cleanedResult === "string"
-                    ? cleanedResult
-                    : JSON.stringify(cleanedResult, null, 2);
-
-                // Parse JSON content for jsonContent field
-                try {
-                  parsedJson =
-                    typeof extractedData === "string"
-                      ? JSON.parse(extractedData)
-                      : extractedData;
-                } catch (err) {
-                  console.error(
-                    `JSON parse error for job ${jobId}, file ${result.file.name}:`,
-                    err,
-                    "\nRaw data:",
-                    extractedData?.substring(0, 500),
-                  );
-                  parsedJson = null;
-                }
-              } else {
+              if (!normalized) {
                 continue; // Skip if no data
               }
+
+              const { text: extractedData, parsed: parsedJson } = normalized;
 
               // Save to history (only if we have usage data)
               if (result.result?.usage) {
@@ -352,27 +383,83 @@ export function useJobManager(options?: UseJobManagerOptions): UseJobManagerRetu
   /**
    * Cancel a running job
    */
-  const cancelJob = useCallback((jobId: string) => {
-    const controller = abortControllers.current.get(jobId);
+  const cancelJob = useCallback(
+    (jobId: string) => {
+      const controller = abortControllers.current.get(jobId);
 
-    if (controller) {
-      controller.abort();
-      abortControllers.current.delete(jobId);
-    }
-
-    setJobs((prev) => {
-      const updated = new Map(prev);
-      const job = updated.get(jobId);
-
-      if (job && (job.status === "processing" || job.status === "queued")) {
-        job.status = "failed";
-        job.endTime = Date.now();
-        updated.set(jobId, { ...job });
+      if (controller) {
+        controller.abort();
+        abortControllers.current.delete(jobId);
       }
 
-      return updated;
-    });
-  }, []);
+      setJobs((prev) => {
+        const updated = new Map(prev);
+        const job = updated.get(jobId);
+
+        if (job && (job.status === "processing" || job.status === "queued")) {
+          // Mark as cancelled immediately
+          job.status = "cancelled";
+          job.endTime = Date.now();
+          updated.set(jobId, { ...job });
+
+          // Calculate current stats from results
+          const successFiles = job.results
+            .filter((r) => r?.status === "success")
+            .map((r) => r.file.name);
+          const fileFailures = job.results
+            .filter(
+              (r) => r?.status === "failed" && !isAbortCancellation(r.error),
+            )
+            .map((r) => ({
+              fileName: r.file.name,
+              error: r.error || "Unknown error",
+            }));
+          const cancelledFiles = job.results
+            .filter(
+              (r) =>
+                r?.status === "cancelled" ||
+                (r?.status === "failed" && isAbortCancellation(r.error)),
+            )
+            .map((r) => ({
+              fileName: r.file.name,
+              reason: r.error || "Job was cancelled",
+            }));
+          const totalCost = job.results
+            .filter((r) => r?.status === "success")
+            .reduce((sum, r) => sum + (r.result?.usage.estimatedCost || 0), 0);
+
+          const completed =
+            successFiles.length + fileFailures.length + cancelledFiles.length;
+
+          // Build description
+          const parts: string[] = [];
+
+          if (successFiles.length > 0) parts.push(`${successFiles.length} succeeded`);
+          if (fileFailures.length > 0) parts.push(`${fileFailures.length} failed`);
+          if (cancelledFiles.length > 0) parts.push(`${cancelledFiles.length} cancelled`);
+          const description =
+            parts.length > 0
+              ? `Job cancelled: ${parts.join(", ")}`
+              : "Job cancelled.";
+
+          // Update notification to reflect cancellation with final stats
+          updateNotification(job.notificationId, {
+            description,
+            status: "cancelled",
+            itemsProcessed: completed,
+            totalCost,
+            successFiles,
+            fileFailures,
+            cancelledFiles,
+            progress: { current: completed, total: job.files.length },
+          });
+        }
+
+        return updated;
+      });
+    },
+    [updateNotification],
+  );
 
   /**
    * Get a specific job

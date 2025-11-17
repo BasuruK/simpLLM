@@ -26,8 +26,39 @@ import {
   InfoCircleIcon,
   CloseCircleIcon,
   CheckIcon,
+  StopIcon,
 } from "@/components/icons";
 import { Notification } from "@/types/notification";
+
+// Pattern substring used to detect user-cancelled errors.
+const CANCELLATION_ERROR_PATTERN = "cancelled";
+
+const isCancelledFailure = (error?: string): boolean => {
+  if (!error) return false;
+  return error.toLowerCase().includes(CANCELLATION_ERROR_PATTERN);
+};
+
+const normalizeFailureBuckets = (
+  notification: Notification,
+): { failures: Notification["fileFailures"]; cancelled: Notification["cancelledFiles"] } => {
+  const failures = notification.fileFailures.filter(
+    (failure) => !isCancelledFailure(failure.error),
+  );
+
+  const derivedCancelled = notification.fileFailures
+    .filter((failure) => isCancelledFailure(failure.error))
+    .map((failure) => ({
+      fileName: failure.fileName,
+      reason: failure.error,
+    }));
+
+  const cancelled = [
+    ...(notification.cancelledFiles ?? []),
+    ...derivedCancelled,
+  ];
+
+  return { failures, cancelled };
+};
 
 interface NotificationDrawerProps {
   isOpen: boolean;
@@ -73,6 +104,12 @@ export const NotificationDrawer = ({
     setIsDetailsOpen(true);
   };
 
+  const selectedBuckets = selectedNotification
+    ? normalizeFailureBuckets(selectedNotification)
+    : { failures: [], cancelled: [] };
+  const modalFailures = selectedBuckets.failures;
+  const modalCancelled = selectedBuckets.cancelled;
+
   return (
     <Drawer
       isOpen={isOpen}
@@ -102,36 +139,71 @@ export const NotificationDrawer = ({
                 </div>
               ) : (
                 <div className="flex flex-col gap-3">
-                  {notifications.map((notification) => (
-                    <Card
-                      key={notification.id}
-                      className={`relative ${!notification.read ? "border-l-4 border-primary" : ""}`}
-                    >
-                      <CardHeader className="flex flex-col items-start gap-2 pb-2">
-                        <div className="flex w-full items-start justify-between gap-2">
-                          <div
-                            className="flex-1 cursor-pointer"
-                            onClick={() => onMarkAsRead?.(notification.id)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" || e.key === " ") {
-                                e.preventDefault();
-                                onMarkAsRead?.(notification.id);
-                              }
-                            }}
-                            role="button"
-                            tabIndex={0}
-                          >
-                            <h3 className="text-lg font-semibold">
-                              {notification.title}
-                            </h3>
+                  {notifications.map((notification) => {
+                    const {
+                      failures: failureFiles,
+                      cancelled: derivedCancelled,
+                    } = normalizeFailureBuckets(notification);
+                    const hasDetails =
+                      failureFiles.length > 0 || derivedCancelled.length > 0;
+
+                    return (
+                      <Card
+                        key={notification.id}
+                        className={`relative ${!notification.read ? "border-l-4 border-primary" : ""}`}
+                      >
+                        <CardHeader className="flex flex-col items-start gap-2 pb-2">
+                          <div className="flex w-full items-start justify-between gap-2 pr-36">
+                            <div
+                              className="flex-1 cursor-pointer"
+                              onClick={() => onMarkAsRead?.(notification.id)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                  e.preventDefault();
+                                  onMarkAsRead?.(notification.id);
+                                }
+                              }}
+                              role="button"
+                              tabIndex={0}
+                            >
+                              <h3 className="text-lg font-semibold">
+                                {notification.title}
+                              </h3>
+                              <p className="text-xs text-default-400 mt-0.5">
+                                {formatDate(notification.timestamp)}
+                              </p>
+                            </div>
                           </div>
-                          {notification.fileFailures.length > 0 && (
-                            <Tooltip content="View error details">
+                          {notification.description && (
+                            <p className="text-sm text-default-600">
+                              {notification.description}
+                            </p>
+                          )}
+                        </CardHeader>
+                        <div className="absolute top-2 right-2 flex items-center gap-2 z-10">
+                          {notification.status === "processing" &&
+                            notification.jobId &&
+                            onCancelJob && (
+                              <Tooltip content="Cancel job">
+                                <Button
+                                  isIconOnly
+                                  className="min-w-unit-10 w-unit-10 h-unit-10"
+                                  color="danger"
+                                  size="md"
+                                  variant="light"
+                                  onPress={() => onCancelJob(notification.jobId!)}
+                                >
+                                  <StopIcon size={20} />
+                                </Button>
+                              </Tooltip>
+                            )}
+                          {hasDetails && (
+                            <Tooltip content="View details">
                               <Button
                                 isIconOnly
-                                className="min-w-unit-8 w-unit-8 h-unit-8"
-                                color="danger"
-                                size="sm"
+                                className="min-w-unit-10 w-unit-10 h-unit-10"
+                                color="default"
+                                size="md"
                                 variant="flat"
                                 onPress={() => handleViewDetails(notification)}
                               >
@@ -139,40 +211,26 @@ export const NotificationDrawer = ({
                               </Button>
                             </Tooltip>
                           )}
+                          <Tooltip content="Close notification">
+                            <Button
+                              isIconOnly
+                              className="min-w-unit-10 w-unit-10 h-unit-10"
+                              size="md"
+                              variant="light"
+                              onPress={() => onRemove?.(notification.id)}
+                            >
+                              <CloseCircleIcon size={20} />
+                            </Button>
+                          </Tooltip>
                         </div>
-                        <p className="text-sm text-default-600">
-                          {notification.description}
-                        </p>
-                        <div className="flex w-full items-center justify-between gap-2 mt-1">
-                          <div className="flex flex-col gap-1">
-                            <span className="text-sm font-semibold text-primary">
-                              {formatCurrency(notification.totalCost)}
-                            </span>
-                            <span className="text-xs text-default-400">
-                              {formatDate(notification.timestamp)}
-                            </span>
-                          </div>
-                        </div>
-                      </CardHeader>
-                      {/* Close button positioned absolutely at top-right */}
-                      <Tooltip content="Close notification">
-                        <Button
-                          isIconOnly
-                          className="absolute top-2 right-2 min-w-unit-10 w-unit-10 h-unit-10 z-10"
-                          size="md"
-                          variant="light"
-                          onPress={() => onRemove?.(notification.id)}
-                        >
-                          <CloseCircleIcon size={20} />
-                        </Button>
-                      </Tooltip>
                       {notification.status === "processing" &&
                         notification.progress && (
                           <div className="w-full px-4 pb-3">
                             <div className="flex items-center gap-3 mb-2">
                               <Spinner color="default" size="sm" />
                               <span className="text-sm text-default-600">
-                                Processing {notification.progress.current} of {notification.progress.total} files...
+                                Processing {notification.progress.current} of{" "}
+                                {notification.progress.total} files...
                               </span>
                             </div>
                             <Progress
@@ -199,26 +257,20 @@ export const NotificationDrawer = ({
                                   : 0
                               }
                             />
-                            {notification.jobId && onCancelJob && (
-                              <div className="mt-3 flex justify-end">
-                                <Button
-                                  color="danger"
-                                  size="sm"
-                                  variant="flat"
-                                  onPress={() => onCancelJob(notification.jobId!)}
-                                >
-                                  Cancel Job
-                                </Button>
-                              </div>
-                            )}
                           </div>
                         )}
                       <CardBody className="pt-0">
-                        <div className="grid grid-cols-2 gap-3 text-sm">
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
                           <div>
                             <p className="text-default-500">Total Files</p>
                             <p className="font-semibold">
                               {notification.itemsProcessed}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-default-500">Total Cost</p>
+                            <p className="font-semibold text-primary">
+                              {formatCurrency(notification.totalCost)}
                             </p>
                           </div>
                           <div>
@@ -228,15 +280,15 @@ export const NotificationDrawer = ({
                             </p>
                           </div>
                         </div>
-                        {notification.fileFailures.length > 0 && (
+                        {failureFiles.length > 0 && (
                           <div className="mt-3 space-y-2">
                             <div className="flex items-center justify-between">
                               <p className="text-xs text-default-500">
-                                Failed ({notification.fileFailures.length}):
+                                Failed ({failureFiles.length}):
                               </p>
                             </div>
                             <div className="flex flex-wrap gap-1">
-                              {notification.fileFailures
+                              {failureFiles
                                 .slice(0, 5)
                                 .map((failure, idx) => (
                                   <span
@@ -246,17 +298,44 @@ export const NotificationDrawer = ({
                                     {failure.fileName}
                                   </span>
                                 ))}
-                              {notification.fileFailures.length > 5 && (
+                              {failureFiles.length > 5 && (
                                 <span className="text-xs text-default-400 px-2 py-1">
-                                  +{notification.fileFailures.length - 5} more
+                                  +{failureFiles.length - 5} more
                                 </span>
                               )}
                             </div>
                           </div>
                         )}
+                        {derivedCancelled.length > 0 && (
+                            <div className="mt-3 space-y-2">
+                              <div className="flex items-center justify-between">
+                                <p className="text-xs text-default-500">
+                                  Cancelled ({derivedCancelled.length}):
+                                </p>
+                              </div>
+                              <div className="flex flex-wrap gap-1">
+                                {derivedCancelled
+                                  .slice(0, 5)
+                                  .map((cancelled, idx) => (
+                                    <span
+                                      key={idx}
+                                      className="text-xs bg-warning/10 text-warning px-2 py-1 rounded"
+                                    >
+                                      {cancelled.fileName}
+                                    </span>
+                                  ))}
+                                {derivedCancelled.length > 5 && (
+                                  <span className="text-xs text-default-400 px-2 py-1">
+                                    +{derivedCancelled.length - 5} more
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          )}
                       </CardBody>
                     </Card>
-                  ))}
+                  );
+                })}
                 </div>
               )}
             </DrawerBody>
@@ -293,7 +372,7 @@ export const NotificationDrawer = ({
                 {selectedNotification && (
                   <div className="space-y-4">
                     {/* Summary Stats */}
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       <Card className="bg-default-100">
                         <CardBody className="text-center py-3">
                           <p className="text-2xl font-bold">
@@ -315,9 +394,17 @@ export const NotificationDrawer = ({
                       <Card className="bg-danger-50 dark:bg-danger-100/10">
                         <CardBody className="text-center py-3">
                           <p className="text-2xl font-bold text-danger">
-                            {selectedNotification.fileFailures.length}
+                            {modalFailures.length}
                           </p>
                           <p className="text-sm text-default-600">Failed</p>
+                        </CardBody>
+                      </Card>
+                      <Card className="bg-warning-50 dark:bg-warning-100/10">
+                        <CardBody className="text-center py-3">
+                          <p className="text-2xl font-bold text-warning">
+                            {modalCancelled.length}
+                          </p>
+                          <p className="text-sm text-default-600">Cancelled</p>
                         </CardBody>
                       </Card>
                     </div>
@@ -335,38 +422,63 @@ export const NotificationDrawer = ({
                     </Card>
 
                     {/* Failed Files Details */}
-                    {selectedNotification.fileFailures &&
-                      selectedNotification.fileFailures.length > 0 && (
+                    {modalFailures.length > 0 && (
+                      <div>
+                        <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                          <CloseCircleIcon className="text-danger" size={20} />
+                          Failed Files
+                        </h3>
+                        <div className="space-y-2 max-h-80 overflow-y-auto">
+                          {modalFailures.map((failure, idx) => (
+                            <Card key={idx} className="border-l-4 border-danger">
+                              <CardBody className="py-3">
+                                <div className="space-y-2">
+                                  <p className="font-semibold text-sm">
+                                    {failure.fileName}
+                                  </p>
+                                  <div className="bg-danger-50 dark:bg-danger-100/10 rounded-lg p-3">
+                                    <p className="text-sm text-danger">
+                                      <span className="font-semibold">
+                                        Error:{" "}
+                                      </span>
+                                      {failure.error}
+                                    </p>
+                                  </div>
+                                </div>
+                              </CardBody>
+                            </Card>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Cancelled Files Details */}
+                    {modalCancelled.length > 0 && (
                         <div>
                           <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                            <CloseCircleIcon className="text-danger" size={20} />
-                            Failed Files
+                            <StopIcon className="text-warning" size={20} />
+                            Cancelled Files
                           </h3>
                           <div className="space-y-2 max-h-80 overflow-y-auto">
-                            {selectedNotification.fileFailures.map(
-                              (failure, idx) => (
-                                <Card
-                                  key={idx}
-                                  className="border-l-4 border-danger"
-                                >
-                                  <CardBody className="py-3">
-                                    <div className="space-y-2">
-                                      <p className="font-semibold text-sm">
-                                        {failure.fileName}
+                            {modalCancelled.map((cancelled, idx) => (
+                              <Card key={idx} className="border-l-4 border-warning">
+                                <CardBody className="py-3">
+                                  <div className="space-y-2">
+                                    <p className="font-semibold text-sm">
+                                      {cancelled.fileName}
+                                    </p>
+                                    <div className="bg-warning-50 dark:bg-warning-100/10 rounded-lg p-3">
+                                      <p className="text-sm text-warning">
+                                        <span className="font-semibold">
+                                          Reason:{" "}
+                                        </span>
+                                        {cancelled.reason}
                                       </p>
-                                      <div className="bg-danger-50 dark:bg-danger-100/10 rounded-lg p-3">
-                                        <p className="text-sm text-danger">
-                                          <span className="font-semibold">
-                                            Error:{" "}
-                                          </span>
-                                          {failure.error}
-                                        </p>
-                                      </div>
                                     </div>
-                                  </CardBody>
-                                </Card>
-                              ),
-                            )}
+                                  </div>
+                                </CardBody>
+                              </Card>
+                            ))}
                           </div>
                         </div>
                       )}

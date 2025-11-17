@@ -5,7 +5,7 @@ import { extractDataFromFileNonStreaming, ExtractionResult } from "./openai";
  */
 export interface BatchFileResult {
   file: File;
-  status: "success" | "failed";
+  status: "success" | "failed" | "cancelled";
   result?: ExtractionResult;
   error?: string;
 }
@@ -77,12 +77,26 @@ export async function processBatch(
     limiter.add(async () => {
       // Check if aborted before processing each file
       if (signal?.aborted) {
-        throw new Error("Batch processing was cancelled");
+        const fileResult: BatchFileResult = {
+          file,
+          status: "cancelled",
+          error: "Cancelled by user",
+        };
+
+        results[index] = fileResult;
+        completed++;
+
+        // Report progress
+        if (onProgress) {
+          onProgress(completed, files.length, [...results]);
+        }
+
+        return fileResult;
       }
 
       try {
         // Use non-streaming extraction for batch processing
-        const result = await extractDataFromFileNonStreaming(file);
+        const result = await extractDataFromFileNonStreaming(file, signal);
 
         const fileResult: BatchFileResult = {
           file,

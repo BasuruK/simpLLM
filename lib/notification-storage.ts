@@ -19,6 +19,7 @@ interface StoredNotification {
   successFiles: string[];
   failedFiles?: string[]; // Legacy field for migration
   fileFailures?: Array<{ fileName: string; error: string }>;
+  cancelledFiles?: Array<{ fileName: string; reason: string }>;
   timestamp: string;
   read: boolean;
   jobId?: string;
@@ -108,10 +109,17 @@ export class IndexedDBNotificationStorage implements NotificationStorageClient {
             totalCost: item.totalCost,
             successFiles: item.successFiles,
             fileFailures,
+            cancelledFiles: item.cancelledFiles || [],
             timestamp: new Date(item.timestamp),
             read: item.read,
             jobId: item.jobId,
-            status: item.status as "processing" | "completed" | "failed" | undefined,
+            status: item.status as
+              | "queued"
+              | "processing"
+              | "completed"
+              | "failed"
+              | "cancelled"
+              | undefined,
             progress: item.progress,
           };
         });

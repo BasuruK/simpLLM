@@ -256,7 +256,10 @@ function createRequestBody(contentItem: any, stream: boolean): any {
 /**
  * Make API request to OpenAI
  */
-async function makeApiRequest(requestBody: any): Promise<Response> {
+async function makeApiRequest(
+  requestBody: any,
+  signal?: AbortSignal,
+): Promise<Response> {
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: {
@@ -264,6 +267,7 @@ async function makeApiRequest(requestBody: any): Promise<Response> {
       Authorization: `Bearer ${getApiKey()}`,
     },
     body: JSON.stringify(requestBody),
+    signal,
   });
 
   if (!response.ok) {
@@ -290,20 +294,31 @@ async function makeApiRequest(requestBody: any): Promise<Response> {
  */
 export async function extractDataFromFileNonStreaming(
   file: File,
+  signal?: AbortSignal,
 ): Promise<ExtractionResult> {
   let uploadedFileId: string | null = null;
 
   try {
+    // Check if already aborted before starting
+    if (signal?.aborted) {
+      throw new Error("Operation was cancelled");
+    }
+
     // Prepare content item
     const { item: contentItem, uploadedFileId: fileId } =
       await prepareContentItem(file);
 
     uploadedFileId = fileId;
 
-    // Make API request
+    // Check if aborted after upload
+    if (signal?.aborted) {
+      throw new Error("Operation was cancelled");
+    }
+
+    // Make API request with abort signal
     const requestBody = createRequestBody(contentItem, false);
     const startTime = Date.now();
-    const response = await makeApiRequest(requestBody);
+    const response = await makeApiRequest(requestBody, signal);
 
     // Parse response
     const result = await response.json();

@@ -3,6 +3,11 @@ export interface FileFailure {
   error: string;
 }
 
+export interface FileCancellation {
+  fileName: string;
+  reason: string;
+}
+
 export interface Notification {
   id: string;
   title: string;
@@ -11,10 +16,11 @@ export interface Notification {
   totalCost: number;
   successFiles: string[];
   fileFailures: FileFailure[];
+  cancelledFiles: FileCancellation[];
   timestamp: Date;
   read: boolean;
   jobId?: string;
-  status?: "queued" | "processing" | "completed" | "failed";
+  status?: "queued" | "processing" | "completed" | "failed" | "cancelled";
   progress?: {
     current: number;
     total: number;
@@ -28,8 +34,9 @@ export interface NotificationInput {
   totalCost: number;
   successFiles: string[];
   fileFailures: FileFailure[];
+  cancelledFiles: FileCancellation[];
   jobId?: string;
-  status?: "queued" | "processing" | "completed" | "failed";
+  status?: "queued" | "processing" | "completed" | "failed" | "cancelled";
   progress?: {
     current: number;
     total: number;

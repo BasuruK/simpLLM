@@ -22,6 +22,7 @@ export function ExampleAddNotification() {
       totalCost: 0.15,
       successFiles: ["invoice-001.pdf", "invoice-002.pdf", "invoice-003.pdf"],
       fileFailures: [],
+      cancelledFiles: [],
     });
 
     console.log("Created notification with ID:", notificationId);
@@ -47,6 +48,7 @@ export function ExampleWithFailures() {
         { fileName: "corrupted.pdf", error: "File is corrupted or unreadable" },
         { fileName: "invalid-format.pdf", error: "Invalid file format" },
       ],
+      cancelledFiles: [],
     });
   };
 
@@ -68,6 +70,7 @@ export function ExampleUpdateNotification() {
       totalCost: 0,
       successFiles: [],
       fileFailures: [],
+      cancelledFiles: [],
     });
 
     // Simulate processing
@@ -130,6 +133,7 @@ export function ExampleFullFeatures() {
       totalCost: 0.03,
       successFiles: ["a.pdf", "b.pdf"],
       fileFailures: [],
+      cancelledFiles: [],
     });
 
     addNotification({
@@ -139,6 +143,7 @@ export function ExampleFullFeatures() {
       totalCost: 0.02,
       successFiles: ["c.pdf"],
       fileFailures: [{ fileName: "d.pdf", error: "Processing failed" }],
+      cancelledFiles: [],
     });
   };
 
@@ -174,6 +179,7 @@ export function ExampleRealWorld() {
       totalCost: 0,
       successFiles: [],
       fileFailures: [],
+      cancelledFiles: [],
     });
 
     const successFiles: string[] = [];
@@ -192,8 +198,8 @@ export function ExampleRealWorld() {
           description: `Processing ${i + 1}/${files.length} files...`,
           itemsProcessed: i + 1,
           totalCost,
-          successFiles: [...successFiles],
-          fileFailures: [...fileFailures],
+          successFiles: successFiles,
+          fileFailures: fileFailures,
         });
       } catch (error) {
         fileFailures.push({
@@ -202,7 +208,7 @@ export function ExampleRealWorld() {
         });
         updateNotification(notificationId, {
           itemsProcessed: i + 1,
-          fileFailures: [...fileFailures],
+          fileFailures: fileFailures,
         });
       }
     }

@@ -870,3 +870,37 @@ export const CloseCircleIcon: React.FC<IconSvgProps> = ({
     />
   </svg>
 );
+
+export const StopIcon: React.FC<IconSvgProps> = ({
+  size = 20,
+  width,
+  height,
+  ...props
+}) => (
+  <svg
+    fill="none"
+    height={size || height}
+    viewBox="0 0 24 24"
+    width={size || width}
+    xmlns="http://www.w3.org/2000/svg"
+    {...props}
+  >
+    <circle
+      cx="12"
+      cy="12"
+      r="9"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="1.5"
+    />
+    <rect
+      fill="currentColor"
+      height="8"
+      rx="1"
+      width="8"
+      x="8"
+      y="8"
+    />
+  </svg>
+);
