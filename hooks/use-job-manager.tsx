@@ -57,6 +57,42 @@ export function useJobManager(options?: UseJobManagerOptions): UseJobManagerRetu
    */
   const startBatchJob = useCallback(
     async (files: File[]): Promise<string> => {
+      // Handle empty files array edge case
+      if (files.length === 0) {
+        const jobId = `job-${Date.now()}-${jobIdCounter.current++}`;
+        const notificationId = addNotification({
+          title: "Processing Files",
+          description: "No files to process",
+          itemsProcessed: 0,
+          totalCost: 0,
+          successFiles: [],
+          fileFailures: [],
+          jobId,
+          status: "completed",
+          progress: { current: 0, total: 0 },
+        });
+
+        const job: Job = {
+          id: jobId,
+          files: [],
+          status: "completed",
+          progress: { current: 0, total: 0 },
+          results: [],
+          notificationId,
+          startTime: Date.now(),
+          endTime: Date.now(),
+        };
+
+        setJobs((prev) => new Map(prev).set(jobId, job));
+
+        // Notify completion immediately
+        if (options?.onJobComplete) {
+          options.onJobComplete(jobId);
+        }
+
+        return jobId;
+      }
+
       const jobId = `job-${Date.now()}-${jobIdCounter.current++}`;
 
       // Create abort controller for this job
@@ -154,6 +190,14 @@ export function useJobManager(options?: UseJobManagerOptions): UseJobManagerRetu
             return updated;
           });
 
+          // Derive notification status to match job status logic
+          let notificationStatus: "queued" | "processing" | "completed" | "failed";
+          if (completed === total) {
+            notificationStatus = fileFailures.length === total ? "failed" : "completed";
+          } else {
+            notificationStatus = "processing";
+          }
+
           // Update notification
           updateNotification(notificationId, {
             description:
@@ -164,15 +208,16 @@ export function useJobManager(options?: UseJobManagerOptions): UseJobManagerRetu
             totalCost,
             successFiles,
             fileFailures,
-            status: completed === total ? "completed" : "processing",
+            status: notificationStatus,
             progress: { current: completed, total },
           });
         },
       })
         .then(async (batchResults) => {
           // Save successful extractions to history
+          // Guard against undefined entries (can happen when job is cancelled)
           const successfulResults = batchResults.filter(
-            (r) => r.status === "success" && r.result,
+            (r) => r != null && r.status === "success" && r.result,
           );
 
           // Save each successful extraction
