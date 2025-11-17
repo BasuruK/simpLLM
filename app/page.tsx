@@ -119,7 +119,7 @@ export default function Home() {
     onOpen: onClearModalOpen,
     onOpenChange: onClearModalOpenChange,
   } = useDisclosure();
-  const { startBatchJob, activeJobCount } = useJobManager({
+  const { startBatchJob, activeJobCount, cancelJob } = useJobManager({
     onJobComplete: () => {
       // Refresh history when batch job completes
       setHistoryItems(getHistoryItems());
@@ -712,6 +712,7 @@ export default function Home() {
         avatarUrl={avatarUrl}
         historyCount={historyItems.length}
         username={username}
+        onCancelJob={cancelJob}
         onHistoryClick={onHistoryOpen}
         onLogout={handleLogout}
       />

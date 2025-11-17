@@ -25,8 +25,12 @@ export type BatchProgressCallback = (
 class RateLimiter {
   private running = 0;
   private queue: Array<() => void> = [];
+  private maxConcurrent: number;
 
-  constructor(private maxConcurrent: number) {}
+  constructor(maxConcurrent: number) {
+    // Normalize maxConcurrent to at least 1 to prevent deadlock
+    this.maxConcurrent = Math.max(1, Number(maxConcurrent) || 1);
+  }
 
   async add<T>(fn: () => Promise<T>): Promise<T> {
     // Wait if we've reached max concurrent limit
@@ -59,9 +63,10 @@ export async function processBatch(
   options: {
     maxConcurrent?: number;
     onProgress?: BatchProgressCallback;
+    signal?: AbortSignal;
   } = {},
 ): Promise<BatchFileResult[]> {
-  const { maxConcurrent = 3, onProgress } = options;
+  const { maxConcurrent = 3, onProgress, signal } = options;
   const limiter = new RateLimiter(maxConcurrent);
 
   const results: BatchFileResult[] = [];
@@ -70,6 +75,11 @@ export async function processBatch(
   // Process all files concurrently with rate limiting
   const promises = files.map((file, index) =>
     limiter.add(async () => {
+      // Check if aborted before processing each file
+      if (signal?.aborted) {
+        throw new Error("Batch processing was cancelled");
+      }
+
       try {
         // Use non-streaming extraction for batch processing
         const result = await extractDataFromFileNonStreaming(file);

@@ -14,7 +14,7 @@ export interface Notification {
   timestamp: Date;
   read: boolean;
   jobId?: string;
-  status?: "processing" | "completed" | "failed";
+  status?: "queued" | "processing" | "completed" | "failed";
   progress?: {
     current: number;
     total: number;
@@ -29,7 +29,7 @@ export interface NotificationInput {
   successFiles: string[];
   fileFailures: FileFailure[];
   jobId?: string;
-  status?: "processing" | "completed" | "failed";
+  status?: "queued" | "processing" | "completed" | "failed";
   progress?: {
     current: number;
     total: number;

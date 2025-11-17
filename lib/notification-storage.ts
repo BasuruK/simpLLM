@@ -21,6 +21,9 @@ interface StoredNotification {
   fileFailures?: Array<{ fileName: string; error: string }>;
   timestamp: string;
   read: boolean;
+  jobId?: string;
+  status?: string;
+  progress?: { current: number; total: number };
 }
 
 export class IndexedDBNotificationStorage implements NotificationStorageClient {
@@ -107,6 +110,9 @@ export class IndexedDBNotificationStorage implements NotificationStorageClient {
             fileFailures,
             timestamp: new Date(item.timestamp),
             read: item.read,
+            jobId: item.jobId,
+            status: item.status as "processing" | "completed" | "failed" | undefined,
+            progress: item.progress,
           };
         });
 

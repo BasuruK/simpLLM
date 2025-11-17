@@ -73,7 +73,7 @@ export function useJobManager(options?: UseJobManagerOptions): UseJobManagerRetu
         successFiles: [],
         fileFailures: [],
         jobId,
-        status: "processing",
+        status: "queued",
         progress: {
           current: 0,
           total: files.length,
@@ -84,7 +84,7 @@ export function useJobManager(options?: UseJobManagerOptions): UseJobManagerRetu
       const job: Job = {
         id: jobId,
         files,
-        status: "processing",
+        status: "queued",
         progress: { current: 0, total: files.length },
         results: [],
         notificationId,
@@ -93,9 +93,28 @@ export function useJobManager(options?: UseJobManagerOptions): UseJobManagerRetu
 
       setJobs((prev) => new Map(prev).set(jobId, job));
 
+      // Transition to processing when batch actually starts
+      setJobs((prev) => {
+        const updated = new Map(prev);
+        const currentJob = updated.get(jobId);
+
+        if (currentJob) {
+          currentJob.status = "processing";
+          updated.set(jobId, { ...currentJob });
+        }
+
+        return updated;
+      });
+
+      // Update notification to processing status
+      updateNotification(notificationId, {
+        status: "processing",
+      });
+
       // Start processing in background
       processBatch(files, {
         maxConcurrent: 3,
+        signal: abortController.signal,
         onProgress: (completed, total, results) => {
           // Calculate stats
           const successFiles = results
@@ -195,7 +214,13 @@ export function useJobManager(options?: UseJobManagerOptions): UseJobManagerRetu
                     typeof extractedData === "string"
                       ? JSON.parse(extractedData)
                       : extractedData;
-                } catch {
+                } catch (err) {
+                  console.error(
+                    `JSON parse error for job ${jobId}, file ${result.file.name}:`,
+                    err,
+                    "\nRaw data:",
+                    extractedData?.substring(0, 500),
+                  );
                   parsedJson = null;
                 }
               } else {
@@ -224,13 +249,12 @@ export function useJobManager(options?: UseJobManagerOptions): UseJobManagerRetu
             }
           }
 
-          // Final state update on completion
+          // Final state update on completion - only set endTime if not already set
           setJobs((prev) => {
             const updated = new Map(prev);
             const job = updated.get(jobId);
 
-            if (job && job.status === "processing") {
-              job.status = "completed";
+            if (job && !job.endTime) {
               job.endTime = Date.now();
               updated.set(jobId, { ...job });
             }
@@ -277,7 +301,7 @@ export function useJobManager(options?: UseJobManagerOptions): UseJobManagerRetu
 
       return jobId;
     },
-    [addNotification, updateNotification],
+    [addNotification, updateNotification, options],
   );
 
   /**

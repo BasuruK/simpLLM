@@ -50,6 +50,7 @@ interface NavbarProps {
   onLogout?: () => void;
   onHistoryClick?: () => void;
   historyCount?: number;
+  onCancelJob?: (jobId: string) => void;
 }
 
 export const Navbar = ({
@@ -58,6 +59,7 @@ export const Navbar = ({
   onLogout,
   onHistoryClick,
   historyCount = 0,
+  onCancelJob,
 }: NavbarProps) => {
   const { theme, setTheme } = useTheme();
   const [isDeveloperMode, setIsDeveloperMode] = useState(false);
@@ -308,6 +310,7 @@ export const Navbar = ({
       <NotificationDrawer
         isOpen={isNotificationOpen}
         notifications={notifications}
+        onCancelJob={onCancelJob}
         onClearAll={clearAll}
         onMarkAsRead={markAsRead}
         onRemove={removeNotification}

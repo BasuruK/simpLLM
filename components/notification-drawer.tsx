@@ -36,6 +36,7 @@ interface NotificationDrawerProps {
   onClearAll?: () => void;
   onMarkAsRead?: (id: string) => void;
   onRemove?: (id: string) => void;
+  onCancelJob?: (jobId: string) => void;
 }
 
 export const NotificationDrawer = ({
@@ -45,6 +46,7 @@ export const NotificationDrawer = ({
   onClearAll,
   onMarkAsRead,
   onRemove,
+  onCancelJob,
 }: NotificationDrawerProps) => {
   const [selectedNotification, setSelectedNotification] =
     useState<Notification | null>(null);
@@ -197,6 +199,18 @@ export const NotificationDrawer = ({
                                   : 0
                               }
                             />
+                            {notification.jobId && onCancelJob && (
+                              <div className="mt-3 flex justify-end">
+                                <Button
+                                  color="danger"
+                                  size="sm"
+                                  variant="flat"
+                                  onPress={() => onCancelJob(notification.jobId!)}
+                                >
+                                  Cancel Job
+                                </Button>
+                              </div>
+                            )}
                           </div>
                         )}
                       <CardBody className="pt-0">
