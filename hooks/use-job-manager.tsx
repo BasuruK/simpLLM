@@ -8,6 +8,32 @@ import { saveHistoryItem } from "@/lib/history-storage";
 import { saveFileBlob, generateThumbnail } from "@/lib/file-storage";
 
 /**
+ * Remove Markdown code fences (```json ... ```), keeping the inner payload.
+ */
+const stripMarkdownCodeFence = (input: string): string => {
+  const trimmed = input.trim();
+
+  if (!trimmed.startsWith("```")) return input;
+
+  const firstNewLine = trimmed.indexOf("\n");
+
+  if (firstNewLine === -1) return input;
+
+  const openingLine = trimmed.slice(0, firstNewLine).trim();
+
+  if (!openingLine.startsWith("```")) return input;
+
+  let inner = trimmed.slice(firstNewLine + 1);
+  const closingFenceIndex = inner.lastIndexOf("```");
+
+  if (closingFenceIndex === -1) return input;
+
+  inner = inner.slice(0, closingFenceIndex);
+
+  return inner.trim();
+};
+
+/**
  * Normalize extracted data by unwrapping text wrappers, converting to string, and parsing JSON
  * @param data - The raw extracted data from the API
  * @param context - Context information for error logging (jobId, fileName)
@@ -27,8 +53,9 @@ function normalizeExtractedData(
   }
 
   // Convert to string
-  const text =
+  const textRaw =
     typeof cleaned === "string" ? cleaned : JSON.stringify(cleaned, null, 2);
+  const text = stripMarkdownCodeFence(textRaw);
 
   // Parse JSON with error logging
   let parsed: unknown;
@@ -64,6 +91,7 @@ const isAbortCancellation = (error: unknown): boolean => {
   if (typeof error === "string" && error.toLowerCase().includes("abort")) {
     return true;
   }
+
   return false;
 };
 
@@ -101,7 +129,9 @@ export interface UseJobManagerOptions {
  * Hook to manage multiple concurrent extraction jobs
  * Integrates with notification system for real-time updates
  */
-export function useJobManager(options?: UseJobManagerOptions): UseJobManagerReturn {
+export function useJobManager(
+  options?: UseJobManagerOptions,
+): UseJobManagerReturn {
   const [jobs, setJobs] = useState<Map<string, Job>>(new Map());
   const { addNotification, updateNotification } = useNotifications();
   const jobIdCounter = useRef(0);
@@ -203,7 +233,9 @@ export function useJobManager(options?: UseJobManagerOptions): UseJobManagerRetu
 
           // Separate failed files from cancelled files
           const fileFailures = results
-            .filter((r) => r?.status === "failed" && !isAbortCancellation(r.error))
+            .filter(
+              (r) => r?.status === "failed" && !isAbortCancellation(r.error),
+            )
             .map((r) => ({
               fileName: r.file.name,
               error: r.error || "Unknown error",
@@ -234,7 +266,9 @@ export function useJobManager(options?: UseJobManagerOptions): UseJobManagerRetu
               currentJob.results = results;
 
               if (completed === total) {
-                const totalFailures = fileFailures.length + cancelledFiles.length;
+                const totalFailures =
+                  fileFailures.length + cancelledFiles.length;
+
                 currentJob.status =
                   totalFailures === total ? "failed" : "completed";
                 currentJob.endTime = Date.now();
@@ -247,19 +281,23 @@ export function useJobManager(options?: UseJobManagerOptions): UseJobManagerRetu
           });
 
           // Derive notification status to match job status logic
-          let notificationStatus: "queued" | "processing" | "completed" | "failed";
+          let notificationStatus:
+            | "queued"
+            | "processing"
+            | "completed"
+            | "failed";
           const totalFailures = fileFailures.length + cancelledFiles.length;
+
           if (completed === total) {
-            notificationStatus = totalFailures === total ? "failed" : "completed";
+            notificationStatus =
+              totalFailures === total ? "failed" : "completed";
           } else {
             notificationStatus = "processing";
           }
 
           // Build description (show progress text only while running)
           const description =
-            completed === total
-              ? ""
-              : `Processing ${completed} of ${total}...`;
+            completed === total ? "" : `Processing ${completed} of ${total}...`;
 
           // Update notification
           updateNotification(notificationId, {
@@ -346,7 +384,9 @@ export function useJobManager(options?: UseJobManagerOptions): UseJobManagerRetu
         .catch((error) => {
           // Safely derive error message
           const errorMessage =
-            error instanceof Error ? error.message : String(error || "Unknown error");
+            error instanceof Error
+              ? error.message
+              : String(error || "Unknown error");
 
           // Log raw error for debugging
           console.error("Batch job failed:", error);
@@ -434,9 +474,12 @@ export function useJobManager(options?: UseJobManagerOptions): UseJobManagerRetu
           // Build description
           const parts: string[] = [];
 
-          if (successFiles.length > 0) parts.push(`${successFiles.length} succeeded`);
-          if (fileFailures.length > 0) parts.push(`${fileFailures.length} failed`);
-          if (cancelledFiles.length > 0) parts.push(`${cancelledFiles.length} cancelled`);
+          if (successFiles.length > 0)
+            parts.push(`${successFiles.length} succeeded`);
+          if (fileFailures.length > 0)
+            parts.push(`${fileFailures.length} failed`);
+          if (cancelledFiles.length > 0)
+            parts.push(`${cancelledFiles.length} cancelled`);
           const description =
             parts.length > 0
               ? `Job cancelled: ${parts.join(", ")}`
