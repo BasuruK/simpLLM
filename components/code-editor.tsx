@@ -92,15 +92,14 @@ export function CodeEditor({
   minRows = 25,
   language = "json",
 }: CodeEditorProps) {
-  // Calculate min height based on rows
-  const minHeight = minRows * 1.5 + 1; // Approximate line height in rem
+  // Calculate fixed height based on rows
+  const fixedHeight = minRows * 1.8 + 1; // Approximate line height in rem
 
   return (
     <div
       className="border border-default-200 rounded-lg p-3 overflow-auto bg-default-100/50 dark:bg-default-100/30"
       style={{
-        minHeight: `${minHeight}rem`,
-        maxHeight: "70vh",
+        height: `${fixedHeight}rem`,
         fontFamily: 'ui-monospace, SFMono-Regular, "Jetbrains Mono", monospace',
         fontSize: "0.875rem",
         lineHeight: "1.5rem",
