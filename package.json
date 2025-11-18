@@ -98,6 +98,14 @@
     "typescript": "^5.9.3",
     "wait-on": "^9.0.1"
   },
+  "overrides": {
+    "archiver-utils": {
+      "glob": "10.3.6"
+    },
+    "cacache": {
+      "glob": "10.3.6"
+    }
+  },
   "optionalDependencies": {
     "sharp": "^0.34.4"
   }
