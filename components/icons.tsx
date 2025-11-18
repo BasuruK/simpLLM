@@ -578,6 +578,7 @@ export const InfoIcon: React.FC<IconSvgProps> = ({
   size = 20,
   width,
   height,
+  ...props
 }) => (
   <svg
     fill="none"
@@ -585,6 +586,7 @@ export const InfoIcon: React.FC<IconSvgProps> = ({
     viewBox="0 0 24 24"
     width={size || width}
     xmlns="http://www.w3.org/2000/svg"
+    {...props}
   >
     <path
       d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2Z"
@@ -609,6 +611,9 @@ export const InfoIcon: React.FC<IconSvgProps> = ({
     />
   </svg>
 );
+
+// Alias for backward compatibility
+export const InfoCircleIcon = InfoIcon;
 
 export const HistoryIcon: React.FC<IconSvgProps> = ({
   size = 20,
@@ -824,6 +829,78 @@ export const NotificationIcon: React.FC<IconSvgProps> = ({
       strokeLinecap="round"
       strokeMiterlimit="10"
       strokeWidth="1.5"
+    />
+  </svg>
+);
+
+export const CloseCircleIcon: React.FC<IconSvgProps> = ({
+  size = 20,
+  width,
+  height,
+  ...props
+}) => (
+  <svg
+    fill="none"
+    height={size || height}
+    viewBox="0 0 24 24"
+    width={size || width}
+    xmlns="http://www.w3.org/2000/svg"
+    {...props}
+  >
+    <path
+      d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2Z"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="1.5"
+    />
+    <path
+      d="M9.17004 14.83L14.83 9.17004"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="1.5"
+    />
+    <path
+      d="M14.83 14.83L9.17004 9.17004"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="1.5"
+    />
+  </svg>
+);
+
+export const StopIcon: React.FC<IconSvgProps> = ({
+  size = 20,
+  width,
+  height,
+  ...props
+}) => (
+  <svg
+    fill="none"
+    height={size || height}
+    viewBox="0 0 24 24"
+    width={size || width}
+    xmlns="http://www.w3.org/2000/svg"
+    {...props}
+  >
+    <circle
+      cx="12"
+      cy="12"
+      r="9"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="1.5"
+    />
+    <rect
+      fill="currentColor"
+      height="8"
+      rx="1"
+      width="8"
+      x="8"
+      y="8"
     />
   </svg>
 );

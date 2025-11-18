@@ -73,6 +73,7 @@ import {
   generateThumbnail,
   clearAllFileBlobs,
 } from "@/lib/file-storage";
+import { useJobManager } from "@/hooks/use-job-manager";
 import { HistoryItem } from "@/types";
 
 export default function Home() {
@@ -98,6 +99,8 @@ export default function Home() {
     useState<ExtractionUsage | null>(null);
   const [devOptionsEnabled, setDevOptionsEnabled] = useState(false);
   const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
+  const [showBatchNotification, setShowBatchNotification] = useState(false);
+  const batchNotificationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [currentHistoryId, setCurrentHistoryId] = useState<string | null>(null);
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -116,6 +119,12 @@ export default function Home() {
     onOpen: onClearModalOpen,
     onOpenChange: onClearModalOpenChange,
   } = useDisclosure();
+  const { startBatchJob, activeJobCount, cancelJob } = useJobManager({
+    onJobComplete: () => {
+      // Refresh history when batch job completes
+      setHistoryItems(getHistoryItems());
+    },
+  });
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -125,7 +134,7 @@ export default function Home() {
     }
   };
 
-  const processFiles = (files: File[]) => {
+  const processFiles = async (files: File[], processInBackground = false) => {
     // Filter valid files (images and PDFs)
     const validFiles = files.filter(
       (file) =>
@@ -149,6 +158,56 @@ export default function Home() {
       return;
     }
 
+    // If multiple files and background processing requested
+    if (validFiles.length > 1 && processInBackground) {
+      // Start batch job in background with error handling
+      try {
+        await startBatchJob(validFiles);
+
+        // Show confirmation message only on success
+        setLiveMessage(
+          `Started background processing of ${validFiles.length} files. Check notifications for progress.`,
+        );
+
+        // Show toast notification
+        setShowBatchNotification(true);
+
+        // Clear any existing timeout
+        if (batchNotificationTimeoutRef.current) {
+          clearTimeout(batchNotificationTimeoutRef.current);
+        }
+
+        // Auto-hide after 5 seconds
+        batchNotificationTimeoutRef.current = setTimeout(() => {
+          setShowBatchNotification(false);
+          batchNotificationTimeoutRef.current = null;
+        }, 5000);
+      } catch (error) {
+        // Log the error for debugging
+        console.error("Failed to start batch job:", error);
+
+        // Set error message for screen readers and UI
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : "Failed to start background processing";
+
+        setLiveMessage(`Error: ${errorMessage}`);
+
+        // Ensure notification stays hidden on error
+        setShowBatchNotification(false);
+
+        // Clear any existing timeout
+        if (batchNotificationTimeoutRef.current) {
+          clearTimeout(batchNotificationTimeoutRef.current);
+          batchNotificationTimeoutRef.current = null;
+        }
+      }
+
+      return;
+    }
+
+    // Normal single-file or preview workflow
     // Clean up old URLs from ref (not stale state)
     fileUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
 
@@ -262,6 +321,11 @@ export default function Home() {
       // Clear save success timeout on unmount
       if (saveSuccessTimeoutRef.current) {
         clearTimeout(saveSuccessTimeoutRef.current);
+      }
+      // Clear batch notification timeout on unmount
+      if (batchNotificationTimeoutRef.current) {
+        clearTimeout(batchNotificationTimeoutRef.current);
+        batchNotificationTimeoutRef.current = null;
       }
     };
   }, []);
@@ -648,6 +712,7 @@ export default function Home() {
         avatarUrl={avatarUrl}
         historyCount={historyItems.length}
         username={username}
+        onCancelJob={cancelJob}
         onHistoryClick={onHistoryOpen}
         onLogout={handleLogout}
       />
@@ -662,6 +727,25 @@ export default function Home() {
             title="Extraction Saved Successfully"
             variant="faded"
             onClose={() => setShowSaveSuccess(false)}
+          />
+        </div>
+      )}
+
+      {/* Batch Processing Notification */}
+      {showBatchNotification && (
+        <div
+          aria-atomic="true"
+          aria-live="polite"
+          className="fixed top-20 right-4 z-50 w-full max-w-md"
+          role="status"
+        >
+          <Alert
+            color="primary"
+            description="Your files are being processed in the background. Status can be viewed in the notifications."
+            isVisible={showBatchNotification}
+            title={`Processing Files in Background`}
+            variant="faded"
+            onClose={() => setShowBatchNotification(false)}
           />
         </div>
       )}
@@ -866,7 +950,7 @@ export default function Home() {
                       {!isDataExtracted && (
                         <Button
                           color="success"
-                          disabled={isExtracting}
+                          disabled={isExtracting || activeJobCount > 0}
                           isLoading={isExtracting}
                           startContent={
                             !isExtracting ? (
@@ -874,7 +958,16 @@ export default function Home() {
                             ) : undefined
                           }
                           variant="flat"
-                          onPress={handleExtractData}
+                          onPress={() => {
+                            if (selectedFiles.length > 1) {
+                              // Multiple files: process in background
+                              processFiles(selectedFiles, true);
+                              handleClearImage();
+                            } else {
+                              // Single file: extract directly
+                              handleExtractData();
+                            }
+                          }}
                         >
                           {isExtracting
                             ? "Extracting..."

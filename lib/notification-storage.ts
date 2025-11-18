@@ -17,9 +17,14 @@ interface StoredNotification {
   itemsProcessed: number;
   totalCost: number;
   successFiles: string[];
-  failedFiles: string[];
+  failedFiles?: string[]; // Legacy field for migration
+  fileFailures?: Array<{ fileName: string; error: string }>;
+  cancelledFiles?: Array<{ fileName: string; reason: string }>;
   timestamp: string;
   read: boolean;
+  jobId?: string;
+  status?: string;
+  progress?: { current: number; total: number };
 }
 
 export class IndexedDBNotificationStorage implements NotificationStorageClient {
@@ -86,10 +91,38 @@ export class IndexedDBNotificationStorage implements NotificationStorageClient {
 
       request.onsuccess = () => {
         const rawNotifications = request.result as StoredNotification[];
-        const notifications: Notification[] = rawNotifications.map((item) => ({
-          ...item,
-          timestamp: new Date(item.timestamp),
-        }));
+        const notifications: Notification[] = rawNotifications.map((item) => {
+          // Migration: convert old failedFiles to fileFailures format
+          let fileFailures = item.fileFailures || [];
+          if (!fileFailures.length && item.failedFiles?.length) {
+            fileFailures = item.failedFiles.map((fileName) => ({
+              fileName,
+              error: "Unknown error", // No error details in legacy format
+            }));
+          }
+
+          return {
+            id: item.id,
+            title: item.title,
+            description: item.description,
+            itemsProcessed: item.itemsProcessed,
+            totalCost: item.totalCost,
+            successFiles: item.successFiles,
+            fileFailures,
+            cancelledFiles: item.cancelledFiles || [],
+            timestamp: new Date(item.timestamp),
+            read: item.read,
+            jobId: item.jobId,
+            status: item.status as
+              | "queued"
+              | "processing"
+              | "completed"
+              | "failed"
+              | "cancelled"
+              | undefined,
+            progress: item.progress,
+          };
+        });
 
         resolve(notifications);
       };

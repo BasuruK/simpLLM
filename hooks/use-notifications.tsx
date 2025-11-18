@@ -20,6 +20,7 @@ interface NotificationContextType {
   addNotification: (input: NotificationInput) => string;
   updateNotification: (id: string, updates: Partial<NotificationInput>) => void;
   markAsRead: (id: string) => void;
+  removeNotification: (id: string) => void;
   clearAll: () => void;
   unreadCount: number;
   isLoaded: boolean;
@@ -132,6 +133,15 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
     );
   }, []);
 
+  const removeNotification = useCallback((id: string) => {
+    // Clear hydration flag to ensure this change is persisted
+    hasHydratedRef.current = false;
+
+    setNotifications((prev) =>
+      prev.filter((notification) => notification.id !== id),
+    );
+  }, []);
+
   const clearAll = useCallback(async () => {
     try {
       await storage.clearAll();
@@ -149,6 +159,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
     addNotification,
     updateNotification,
     markAsRead,
+    removeNotification,
     clearAll,
     unreadCount,
     isLoaded,
