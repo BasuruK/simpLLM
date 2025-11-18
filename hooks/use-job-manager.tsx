@@ -64,6 +64,7 @@ function normalizeExtractedData(
     parsed = typeof text === "string" ? JSON.parse(text) : text;
   } catch (err) {
     if (context) {
+      // eslint-disable-next-line no-console
       console.error(
         `JSON parse error for job ${context.jobId}, file ${context.fileName}:`,
         err,
@@ -77,18 +78,54 @@ function normalizeExtractedData(
   return { text, parsed };
 }
 
+const cancellationPatterns = [
+  "abort",
+  "aborted",
+  "cancel",
+  "canceled",
+  "cancelled",
+  "operation was cancelled",
+  "operation was canceled",
+];
+
+const matchesCancellationText = (value?: string): boolean => {
+  if (!value) return false;
+  const normalized = value.toLowerCase();
+
+  return cancellationPatterns.some((pattern) => normalized.includes(pattern));
+};
+
 /**
  * Robustly detect if an error is an abort/cancellation error.
  */
 const isAbortCancellation = (error: unknown): boolean => {
   if (!error) return false;
-  // Check for standard AbortError type
-  if (typeof error === "object" && error !== null && "name" in error) {
-    // @ts-ignore
-    if ((error as { name?: string }).name === "AbortError") return true;
+
+  if (typeof error === "object" && error !== null) {
+    const name = (error as { name?: unknown }).name;
+
+    if (typeof name === "string" && name.toLowerCase() === "aborterror") {
+      return true;
+    }
+
+    const message = (error as { message?: unknown }).message;
+    const messageText = typeof message === "string" ? message : undefined;
+
+    if (matchesCancellationText(messageText)) {
+      return true;
+    }
+
+    const toStringFn = (error as { toString?: () => string }).toString;
+
+    if (
+      typeof toStringFn === "function" &&
+      matchesCancellationText(toStringFn.call(error))
+    ) {
+      return true;
+    }
   }
-  // Fallback: check if error message contains "abort"
-  if (typeof error === "string" && error.toLowerCase().includes("abort")) {
+
+  if (typeof error === "string" && matchesCancellationText(error)) {
     return true;
   }
 
@@ -257,15 +294,18 @@ export function useJobManager(
             .reduce((sum, r) => sum + (r.result?.usage.estimatedCost || 0), 0);
 
           // Update job state
+          let jobWasCancelled = false;
+
           setJobs((prev) => {
             const updated = new Map(prev);
             const currentJob = updated.get(jobId);
 
             if (currentJob) {
+              jobWasCancelled = currentJob.status === "cancelled";
               currentJob.progress = { current: completed, total };
               currentJob.results = results;
 
-              if (completed === total) {
+              if (!jobWasCancelled && completed === total) {
                 const totalFailures =
                   fileFailures.length + cancelledFiles.length;
 
@@ -285,10 +325,13 @@ export function useJobManager(
             | "queued"
             | "processing"
             | "completed"
-            | "failed";
+            | "failed"
+            | "cancelled";
           const totalFailures = fileFailures.length + cancelledFiles.length;
 
-          if (completed === total) {
+          if (jobWasCancelled) {
+            notificationStatus = "cancelled";
+          } else if (completed === total) {
             notificationStatus =
               totalFailures === total ? "failed" : "completed";
           } else {
@@ -300,16 +343,21 @@ export function useJobManager(
             completed === total ? "" : `Processing ${completed} of ${total}...`;
 
           // Update notification
-          updateNotification(notificationId, {
-            description,
+          const notificationUpdate: Parameters<typeof updateNotification>[1] = {
             itemsProcessed: completed,
             totalCost,
             successFiles,
             fileFailures,
             cancelledFiles,
-            status: notificationStatus,
             progress: { current: completed, total },
-          });
+          };
+
+          if (!jobWasCancelled) {
+            notificationUpdate.description = description;
+            notificationUpdate.status = notificationStatus;
+          }
+
+          updateNotification(notificationId, notificationUpdate);
         },
       })
         .then(async (batchResults) => {
@@ -389,6 +437,7 @@ export function useJobManager(
               : String(error || "Unknown error");
 
           // Log raw error for debugging
+          // eslint-disable-next-line no-console
           console.error("Batch job failed:", error);
 
           // Handle job failure
@@ -521,8 +570,14 @@ export function useJobManager(
     setJobs((prev) => {
       const updated = new Map(prev);
 
+      const terminalStatuses: Array<Job["status"]> = [
+        "completed",
+        "failed",
+        "cancelled",
+      ];
+
       Array.from(updated.entries()).forEach(([jobId, job]) => {
-        if (job.status === "completed" || job.status === "failed") {
+        if (terminalStatuses.includes(job.status)) {
           updated.delete(jobId);
         }
       });
