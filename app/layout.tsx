@@ -41,9 +41,10 @@ export default function RootLayout({
           fontSans.variable,
         )}
       >
+        <div className="grid-background" />
         <Providers themeProps={{ attribute: "class", defaultTheme: "dark" }}>
           <UpdateNotification />
-          <div className="relative flex flex-col min-h-screen">
+          <div className="relative flex flex-col min-h-screen z-10">
             <main className="w-full px-20 flex-grow flex flex-col">
               {children}
             </main>

@@ -87,9 +87,6 @@ export default function Home() {
   const [fileUrls, setFileUrls] = useState<string[]>([]);
   const fileUrlsRef = useRef<string[]>([]);
   const [liveMessage, setLiveMessage] = useState("");
-  const [failedPdfIndexes, setFailedPdfIndexes] = useState<Set<number>>(
-    new Set(),
-  );
   const [isDataExtracted, setIsDataExtracted] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractedText, setExtractedText] = useState("");
@@ -218,8 +215,6 @@ export default function Home() {
     // Update ref immediately after creating URLs
     fileUrlsRef.current = urls;
 
-    // Reset failed PDF tracking for new files
-    setFailedPdfIndexes(new Set());
     setSelectedFiles(validFiles);
     setFileUrls(urls);
     setCurrentFileIndex(0);
@@ -784,7 +779,7 @@ export default function Home() {
                 className={`w-full grid gap-6 transition-all duration-1000 ease-in-out ${isDataExtracted ? "grid-cols-1 lg:grid-cols-2" : "grid-cols-1"}`}
                 style={
                   !isDataExtracted
-                    ? { maxWidth: "calc(40rem * 1.12)" }
+                    ? { maxWidth: "calc(40rem * 1.5)" }
                     : undefined
                 }
               >
@@ -816,7 +811,7 @@ export default function Home() {
                       pagination={{ clickable: true }}
                       slidesPerView={1}
                       spaceBetween={0}
-                      style={{ paddingBottom: "32px" }}
+                      style={{ paddingBottom: "20px" }}
                       onSlideChange={(swiper) => {
                         setCurrentFileIndex(swiper.activeIndex);
                         setLiveMessage(
@@ -835,22 +830,7 @@ export default function Home() {
                             file={file}
                             fileIndex={index}
                             fileUrl={fileUrls[index]}
-                            isFailed={failedPdfIndexes.has(index)}
                             totalFiles={selectedFiles.length}
-                            onError={() => {
-                              setFailedPdfIndexes((prev) =>
-                                new Set(prev).add(index),
-                              );
-                            }}
-                            onRetry={() => {
-                              setFailedPdfIndexes((prev) => {
-                                const updated = new Set(prev);
-
-                                updated.delete(index);
-
-                                return updated;
-                              });
-                            }}
                           />
                         </SwiperSlide>
                       ))}
@@ -870,7 +850,7 @@ export default function Home() {
                     )}
                   </div>
 
-                  <div className="flex justify-between items-center gap-2 mt-4">
+                  <div className="flex justify-between items-center gap-2 mt-2">
                     {/* Spinner indicator when extracting */}
                     {isExtracting && (
                       <div className="flex items-center gap-2 text-success">
