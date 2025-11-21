@@ -40,8 +40,8 @@ function highlightJSON(jsonString: string): JSX.Element[] {
             key={key++}
             className={
               isKey
-                ? "text-orange-600 dark:text-orange-400 font-semibold"
-                : "text-green-600 dark:text-green-400"
+                ? "font-bold text-black dark:text-white"
+                : "text-gray-600 dark:text-gray-400"
             }
           >
             {match}
@@ -49,7 +49,7 @@ function highlightJSON(jsonString: string): JSX.Element[] {
         );
       } else if (number) {
         elements.push(
-          <span key={key++} className="text-orange-600 dark:text-orange-400">
+          <span key={key++} className="text-gray-600 dark:text-gray-400">
             {match}
           </span>,
         );
@@ -57,14 +57,14 @@ function highlightJSON(jsonString: string): JSX.Element[] {
         elements.push(
           <span
             key={key++}
-            className="text-purple-600 dark:text-purple-400 font-semibold"
+            className="text-gray-600 dark:text-gray-400 font-semibold"
           >
             {match}
           </span>,
         );
       } else if (punctuation) {
         elements.push(
-          <span key={key++} className="text-default-500">
+          <span key={key++} className="text-gray-400 dark:text-gray-500">
             {match}
           </span>,
         );
