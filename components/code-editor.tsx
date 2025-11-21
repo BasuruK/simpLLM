@@ -3,6 +3,7 @@
 interface CodeEditorProps {
   value: string;
   minRows?: number;
+  maxRows?: number;
   language?: "json" | "text";
 }
 
@@ -90,17 +91,21 @@ function highlightJSON(jsonString: string): JSX.Element[] {
 export function CodeEditor({
   value,
   minRows = 25,
+  maxRows,
   language = "json",
 }: CodeEditorProps) {
-  // Calculate min height based on rows
-  const minHeight = minRows * 1.5 + 1; // Approximate line height in rem
+  // Calculate heights based on line height (1.5rem) and padding (p-3 = 0.75rem * 2 = 1.5rem)
+  const lineHeight = 1.5;
+  const padding = 1.5;
+  const minHeight = minRows * lineHeight + padding;
+  const maxHeight = maxRows ? maxRows * lineHeight + padding : undefined;
 
   return (
     <div
       className="border border-default-200 rounded-lg p-3 overflow-auto bg-default-100/50 dark:bg-default-100/30"
       style={{
         minHeight: `${minHeight}rem`,
-        maxHeight: "70vh",
+        maxHeight: maxHeight ? `${maxHeight}rem` : "70vh",
         fontFamily: 'ui-monospace, SFMono-Regular, "Jetbrains Mono", monospace',
         fontSize: "0.875rem",
         lineHeight: "1.5rem",
