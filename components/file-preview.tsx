@@ -16,9 +16,23 @@ export function FilePreview({
   const isImage = file.type.startsWith("image/");
 
   return (
+const DEFAULT_ROWS = 25;
+const ROW_HEIGHT_REM = 1.5; // Match line-height from code-editor
+const CONTAINER_PADDING = 1;
+
+export function FilePreview({
+  file,
+  fileUrl,
+  fileIndex,
+  totalFiles,
+}: FilePreviewProps) {
+  const isImage = file.type.startsWith("image/");
+  const previewHeight = DEFAULT_ROWS * ROW_HEIGHT_REM + CONTAINER_PADDING;
+
+  return (
     <div
       className="w-full border border-default-200 rounded-lg overflow-hidden bg-default-50 dark:bg-default-100 flex items-center justify-center"
-      style={{ height: `${25 * 2 + 1}rem` }}
+      style={{ height: `${previewHeight}rem` }}
     >
       {isImage ? (
         fileUrl ? (
