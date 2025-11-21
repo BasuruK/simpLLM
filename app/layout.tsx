@@ -41,7 +41,20 @@ export default function RootLayout({
           fontSans.variable,
         )}
       >
-        <div className="grid-background" />
+        <div
+          className="fixed inset-0 z-0 pointer-events-none"
+          style={{
+            backgroundImage: `
+              linear-gradient(45deg, transparent 49%, rgba(128, 128, 128, 0.1) 49%, rgba(128, 128, 128, 0.1) 51%, transparent 51%),
+              linear-gradient(-45deg, transparent 49%, rgba(128, 128, 128, 0.1) 49%, rgba(128, 128, 128, 0.1) 51%, transparent 51%)
+            `,
+            backgroundSize: "40px 40px",
+            WebkitMaskImage:
+              "radial-gradient(ellipse 100% 80% at 50% 100%, #000 50%, transparent 90%)",
+            maskImage:
+              "radial-gradient(ellipse 100% 80% at 50% 100%, #000 50%, transparent 90%)",
+          }}
+        />
         <Providers themeProps={{ attribute: "class", defaultTheme: "dark" }}>
           <UpdateNotification />
           <div className="relative flex flex-col min-h-screen z-10">
