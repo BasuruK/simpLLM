@@ -53,6 +53,7 @@ import { CodeEditor } from "@/components/code-editor";
 import { JsonTable } from "@/components/json-table";
 import { LoginScreen } from "@/components/login-screen";
 import { Navbar } from "@/components/navbar";
+import { FilePreview } from "@/components/file-preview";
 import {
   isAuthenticated,
   getUsername,
@@ -86,9 +87,6 @@ export default function Home() {
   const [fileUrls, setFileUrls] = useState<string[]>([]);
   const fileUrlsRef = useRef<string[]>([]);
   const [liveMessage, setLiveMessage] = useState("");
-  const [failedPdfIndexes, setFailedPdfIndexes] = useState<Set<number>>(
-    new Set(),
-  );
   const [isDataExtracted, setIsDataExtracted] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractedText, setExtractedText] = useState("");
@@ -184,6 +182,7 @@ export default function Home() {
         }, 5000);
       } catch (error) {
         // Log the error for debugging
+        // eslint-disable-next-line no-console
         console.error("Failed to start batch job:", error);
 
         // Set error message for screen readers and UI
@@ -217,8 +216,6 @@ export default function Home() {
     // Update ref immediately after creating URLs
     fileUrlsRef.current = urls;
 
-    // Reset failed PDF tracking for new files
-    setFailedPdfIndexes(new Set());
     setSelectedFiles(validFiles);
     setFileUrls(urls);
     setCurrentFileIndex(0);
@@ -783,7 +780,7 @@ export default function Home() {
                 className={`w-full grid gap-6 transition-all duration-1000 ease-in-out ${isDataExtracted ? "grid-cols-1 lg:grid-cols-2" : "grid-cols-1"}`}
                 style={
                   !isDataExtracted
-                    ? { maxWidth: "calc(40rem * 1.12)" }
+                    ? { maxWidth: "calc(40rem * 1.5)" }
                     : undefined
                 }
               >
@@ -815,7 +812,7 @@ export default function Home() {
                       pagination={{ clickable: true }}
                       slidesPerView={1}
                       spaceBetween={0}
-                      style={{ paddingBottom: "32px" }}
+                      style={{ paddingBottom: "20px" }}
                       onSlideChange={(swiper) => {
                         setCurrentFileIndex(swiper.activeIndex);
                         setLiveMessage(
@@ -826,87 +823,17 @@ export default function Home() {
                       {selectedFiles.map((file, index) => (
                         <SwiperSlide
                           key={index}
+                          aria-label={`${file.name} (Slide ${index + 1} of ${selectedFiles.length})`}
                           aria-roledescription="slide"
                           role="group"
-                          aria-label={`${file.name} (Slide ${index + 1} of ${selectedFiles.length})`}
                         >
-                          <div
-                            className="w-full border border-default-200 rounded-lg overflow-hidden bg-default-50 dark:bg-default-100 flex items-center justify-center"
-                            style={{ height: "calc(82vh * 0.75)" }}
-                          >
-                            {file.type.startsWith("image/") ? (
-                              fileUrls[index] ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img
-                                  alt={`Preview of ${file.name} (${index + 1} of ${selectedFiles.length})`}
-                                  src={fileUrls[index]}
-                                  style={{
-                                    maxWidth: "100%",
-                                    maxHeight: "100%",
-                                    objectFit: "contain",
-                                  }}
-                                />
-                              ) : (
-                                <div className="flex flex-col items-center justify-center gap-2 text-default-500">
-                                  <p className="text-sm">
-                                    No preview available
-                                  </p>
-                                </div>
-                              )
-                            ) : failedPdfIndexes.has(index) ? (
-                              <div
-                                aria-live="polite"
-                                className="flex flex-col items-center justify-center gap-4 p-8 text-center"
-                                role="alert"
-                              >
-                                <div className="text-danger text-lg font-semibold">
-                                  Failed to load PDF preview
-                                </div>
-                                <p className="text-default-500 text-sm">
-                                  {file.name}
-                                </p>
-                                <div className="flex gap-2">
-                                  <Button
-                                    color="primary"
-                                    size="sm"
-                                    variant="flat"
-                                    onPress={() => {
-                                      setFailedPdfIndexes((prev) => {
-                                        const updated = new Set(prev);
-
-                                        updated.delete(index);
-
-                                        return updated;
-                                      });
-                                    }}
-                                  >
-                                    Retry
-                                  </Button>
-                                  <Button
-                                    as="a"
-                                    color="default"
-                                    download={file.name}
-                                    href={fileUrls[index]}
-                                    size="sm"
-                                    variant="flat"
-                                  >
-                                    Download
-                                  </Button>
-                                </div>
-                              </div>
-                            ) : (
-                              <iframe
-                                className="w-full h-full"
-                                src={`${fileUrls[index]}#toolbar=0&navpanes=0&scrollbar=0`}
-                                title={`PDF Preview of ${file.name} (${index + 1} of ${selectedFiles.length})`}
-                                onError={() => {
-                                  setFailedPdfIndexes((prev) =>
-                                    new Set(prev).add(index),
-                                  );
-                                }}
-                              />
-                            )}
-                          </div>
+                          <FilePreview
+                            file={file}
+                            fileIndex={index}
+                            fileUrl={fileUrls[index]}
+                            minRows={34}
+                            totalFiles={selectedFiles.length}
+                          />
                         </SwiperSlide>
                       ))}
                     </Swiper>
@@ -925,7 +852,7 @@ export default function Home() {
                     )}
                   </div>
 
-                  <div className="flex justify-between items-center gap-2 mt-4">
+                  <div className="flex justify-between items-center gap-2 mt-2">
                     {/* Spinner indicator when extracting */}
                     {isExtracting && (
                       <div className="flex items-center gap-2 text-success">
@@ -1071,7 +998,7 @@ export default function Home() {
                     ) : extractedText ? (
                       <CodeEditor
                         language="json"
-                        minRows={28}
+                        minRows={34}
                         value={extractedText}
                       />
                     ) : null}
