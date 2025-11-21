@@ -3,6 +3,7 @@
 interface CodeEditorProps {
   value: string;
   minRows?: number;
+  maxRows?: number;
   language?: "json" | "text";
 }
 
@@ -92,14 +93,16 @@ export function CodeEditor({
   minRows = 25,
   language = "json",
 }: CodeEditorProps) {
-  // Calculate fixed height based on rows
-  const fixedHeight = minRows * 1.8 + 1; // Approximate line height in rem
+  // Calculate heights based on line height (1.5rem) and padding (p-3 = 0.75rem * 2 = 1.5rem)
+  const lineHeight = 1.5;
+  const padding = 1.5;
+  const height = minRows * lineHeight + padding;
 
   return (
     <div
       className="border border-default-200 rounded-lg p-3 overflow-auto bg-default-100/50 dark:bg-default-100/30"
       style={{
-        height: `${fixedHeight}rem`,
+        height: `${height}rem`,
         fontFamily: 'ui-monospace, SFMono-Regular, "Jetbrains Mono", monospace',
         fontSize: "0.875rem",
         lineHeight: "1.5rem",

@@ -5,29 +5,22 @@ interface FilePreviewProps {
   fileUrl: string;
   fileIndex: number;
   totalFiles: number;
+  minRows?: number;
 }
 
-export function FilePreview({
-  file,
-  fileUrl,
-  fileIndex,
-  totalFiles,
-}: FilePreviewProps) {
-  const isImage = file.type.startsWith("image/");
-
-  return (
 const DEFAULT_ROWS = 25;
 const ROW_HEIGHT_REM = 1.5; // Match line-height from code-editor
-const CONTAINER_PADDING = 1;
+const CONTAINER_PADDING = 1.5;
 
 export function FilePreview({
   file,
   fileUrl,
   fileIndex,
   totalFiles,
+  minRows = DEFAULT_ROWS,
 }: FilePreviewProps) {
   const isImage = file.type.startsWith("image/");
-  const previewHeight = DEFAULT_ROWS * ROW_HEIGHT_REM + CONTAINER_PADDING;
+  const previewHeight = minRows * ROW_HEIGHT_REM + CONTAINER_PADDING;
 
   return (
     <div

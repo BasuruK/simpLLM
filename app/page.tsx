@@ -182,6 +182,7 @@ export default function Home() {
         }, 5000);
       } catch (error) {
         // Log the error for debugging
+        // eslint-disable-next-line no-console
         console.error("Failed to start batch job:", error);
 
         // Set error message for screen readers and UI
@@ -830,6 +831,7 @@ export default function Home() {
                             file={file}
                             fileIndex={index}
                             fileUrl={fileUrls[index]}
+                            minRows={34}
                             totalFiles={selectedFiles.length}
                           />
                         </SwiperSlide>
@@ -996,7 +998,7 @@ export default function Home() {
                     ) : extractedText ? (
                       <CodeEditor
                         language="json"
-                        minRows={28}
+                        minRows={34}
                         value={extractedText}
                       />
                     ) : null}
