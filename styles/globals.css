@@ -141,5 +141,5 @@ section[data-drag-active] {
   opacity: 0.9;
   background-size: 60px 60px;
   background-image: radial-gradient(circle, rgba(139, 35, 0, 0.3) 2px, transparent 1px);
-  background-position: 10px 10px; /* Align dots with grid intersections */
+  background-position: 0 0; /* Align dots with grid intersections every 60px (every 3rd grid line) */
 }
