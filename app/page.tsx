@@ -838,7 +838,7 @@ export default function Home() {
                 className={`w-full grid gap-6 transition-all duration-1000 ease-in-out ${isDataExtracted ? "grid-cols-1 lg:grid-cols-2" : "grid-cols-1"}`}
                 style={
                   !isDataExtracted
-                    ? { maxWidth: "calc(40rem * 1.5)" }
+                    ? { maxWidth: "calc(40rem * 1.2)" }
                     : undefined
                 }
               >
@@ -900,7 +900,7 @@ export default function Home() {
                     {selectedFiles.length > 1 && (
                       <div
                         aria-hidden="true"
-                        className="absolute bottom-0 left-1/2 transform -translate-x-1/2 flex items-center gap-2 text-default-500 bg-default-100/80 dark:bg-default-50/80 backdrop-blur-sm px-3 py-1 rounded-full mb-0"
+                        className="absolute bottom-0 left-1/2 transform -translate-x-1/2 flex items-center gap-2 text-default-500 bg-default-100/80 dark:bg-default-50/80 backdrop-blur-sm rounded-full"
                       >
                         <DocumentIcon size={16} />
                         <span className="text-sm font-medium">
