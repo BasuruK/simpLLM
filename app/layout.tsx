@@ -1,4 +1,5 @@
 import "@/styles/globals.css";
+import "@/lib/pdfjs-init";
 import { Metadata, Viewport } from "next";
 import { Link } from "@heroui/link";
 import clsx from "clsx";

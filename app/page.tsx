@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import dynamic from "next/dynamic";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Navigation, Pagination, Keyboard } from "swiper/modules";
 import "swiper/css";
@@ -77,6 +78,11 @@ import {
 import { useJobManager } from "@/hooks/use-job-manager";
 import { HistoryItem } from "@/types";
 
+const PdfPageDrawer = dynamic(
+  () => import("@/components/pdf-page-drawer").then((mod) => mod.PdfPageDrawer),
+  { ssr: false },
+);
+
 export default function Home() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
@@ -102,6 +108,7 @@ export default function Home() {
   const [currentHistoryId, setCurrentHistoryId] = useState<string | null>(null);
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [pdfPageCount, setPdfPageCount] = useState<number>(0);
   const hasReceivedDataRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const saveSuccessTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -116,6 +123,11 @@ export default function Home() {
     isOpen: isClearModalOpen,
     onOpen: onClearModalOpen,
     onOpenChange: onClearModalOpenChange,
+  } = useDisclosure();
+  const {
+    isOpen: isPdfDrawerOpen,
+    onOpen: onPdfDrawerOpen,
+    onOpenChange: onPdfDrawerOpenChange,
   } = useDisclosure();
   const { startBatchJob, activeJobCount, cancelJob } = useJobManager({
     onJobComplete: () => {
@@ -261,6 +273,52 @@ export default function Home() {
   const handleButtonClick = () => {
     fileInputRef.current?.click();
   };
+
+  // Check PDF page count
+  useEffect(() => {
+    let isCancelled = false;
+    let loadingTask: any = null;
+    const capturedIndex = currentFileIndex;
+
+    const checkPdfPages = async () => {
+      const currentFile = selectedFiles[capturedIndex];
+      const currentUrl = fileUrls[capturedIndex];
+
+      if (currentFile && currentFile.type === "application/pdf" && currentUrl) {
+        try {
+          const { pdfjs } = await import("react-pdf");
+
+          if (isCancelled) return;
+
+          loadingTask = pdfjs.getDocument(currentUrl);
+          const pdf = await loadingTask.promise;
+
+          if (!isCancelled && capturedIndex === currentFileIndex) {
+            setPdfPageCount(pdf.numPages);
+          }
+        } catch (error) {
+          if (!isCancelled && capturedIndex === currentFileIndex) {
+            // eslint-disable-next-line no-console
+            console.error("Error checking PDF pages:", error);
+            setPdfPageCount(0);
+          }
+        }
+      } else {
+        if (!isCancelled && capturedIndex === currentFileIndex) {
+          setPdfPageCount(0);
+        }
+      }
+    };
+
+    checkPdfPages();
+
+    return () => {
+      isCancelled = true;
+      if (loadingTask) {
+        loadingTask.destroy().catch(() => {});
+      }
+    };
+  }, [selectedFiles, currentFileIndex, fileUrls]);
 
   // Load history on mount
   useEffect(() => {
@@ -874,6 +932,17 @@ export default function Home() {
                     )}
 
                     <div className="flex gap-2 ml-auto">
+                      {selectedFiles[currentFileIndex]?.type === "application/pdf" &&
+                        pdfPageCount > 1 && (
+                          <Button
+                            color="secondary"
+                            startContent={<DocumentIcon size={18} />}
+                            variant="flat"
+                            onPress={onPdfDrawerOpen}
+                          >
+                            Mark Pages
+                          </Button>
+                        )}
                       {!isDataExtracted && (
                         <Button
                           color="success"
@@ -1420,6 +1489,13 @@ export default function Home() {
           )}
         </ModalContent>
       </Modal>
+
+      {/* PDF Page Drawer */}
+      <PdfPageDrawer
+        file={selectedFiles[currentFileIndex]}
+        isOpen={isPdfDrawerOpen}
+        onOpenChange={onPdfDrawerOpenChange}
+      />
     </>
   );
 }

@@ -21,7 +21,7 @@
     "build:win": "cross-env SHARP_IGNORE_GLOBAL_LIBVIPS=1 next build",
     "start": "next start",
     "lint": "eslint --fix",
-    "postinstall": "node -e \"const fs=require('fs');const dirs=['sharp-darwin-arm64','sharp-darwin-x64','sharp-libvips-darwin-arm64','sharp-libvips-darwin-x64','sharp-linux-arm64','sharp-linux-x64','sharp-libvips-linux-arm64','sharp-libvips-linux-x64'].map(d=>'node_modules/@img/'+d);dirs.forEach(d=>{try{fs.mkdirSync(d,{recursive:true});fs.writeFileSync(d+'/package.json','{}')}catch(e){}})\"",
+    "postinstall": "node -e \"const fs=require('fs');const dirs=['sharp-darwin-arm64','sharp-darwin-x64','sharp-libvips-darwin-arm64','sharp-libvips-darwin-x64','sharp-linux-arm64','sharp-linux-x64','sharp-libvips-linux-arm64','sharp-libvips-linux-x64'].map(d=>'node_modules/@img/'+d);dirs.forEach(d=>{try{fs.mkdirSync(d,{recursive:true});fs.writeFileSync(d+'/package.json','{}')}catch(e){}})\" && node ./scripts/copy-pdf-worker.js",
     "security:check": "node ./scripts/run-security-check.cjs",
     "security:audit": "npm audit",
     "security:fix": "npm audit fix",
@@ -63,6 +63,7 @@
     "openai": "^6.6.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-pdf": "^10.2.0",
     "swiper": "^12.0.3"
   },
   "devDependencies": {
