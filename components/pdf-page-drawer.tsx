@@ -19,19 +19,21 @@ interface PdfPageDrawerProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   file: File | null;
+  selectedPages: number[];
+  setSelectedPages: (pages: number[]) => void;
 }
 
 export function PdfPageDrawer({
   isOpen,
   onOpenChange,
   file,
+  selectedPages,
+  setSelectedPages,
 }: PdfPageDrawerProps) {
   const [numPages, setNumPages] = useState<number>(0);
-  const [selectedPages, setSelectedPages] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     setNumPages(0);
-    setSelectedPages(new Set());
   }, [isOpen, file]);
 
   function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
@@ -39,12 +41,11 @@ export function PdfPageDrawer({
   }
 
   const togglePageSelection = (pageNumber: number) => {
-    const newSelected = new Set(selectedPages);
-
-    if (newSelected.has(pageNumber)) {
-      newSelected.delete(pageNumber);
+    let newSelected: number[];
+    if (selectedPages.includes(pageNumber)) {
+      newSelected = selectedPages.filter((p) => p !== pageNumber);
     } else {
-      newSelected.add(pageNumber);
+      newSelected = [...selectedPages, pageNumber];
     }
     setSelectedPages(newSelected);
   };
@@ -54,11 +55,17 @@ export function PdfPageDrawer({
       <DrawerContent>
         {(onClose) => (
           <>
-            <DrawerHeader className="flex justify-between items-center">
-              <span>PDF Pages</span>
-              <div className="text-small font-normal text-default-500">
-                {selectedPages.size} selected
+            <DrawerHeader className="flex flex-col gap-2">
+              <div className="flex justify-between items-center">
+                <span>Mark Pages</span>
+                <div className="text-small font-normal text-default-500">
+                  {selectedPages.length} selected
+                </div>
               </div>
+              <p className="text-sm text-default-500">
+                Select the pages that should be individually scanned. These
+                pages will be treated as individual invoices.
+              </p>
             </DrawerHeader>
             <DrawerBody>
               {file && (
@@ -80,7 +87,7 @@ export function PdfPageDrawer({
                     <div className="grid grid-cols-3 gap-4 w-full">
                       {Array.from(new Array(numPages), (el, index) => {
                         const pageNum = index + 1;
-                        const isSelected = selectedPages.has(pageNum);
+                        const isSelected = selectedPages.includes(pageNum);
 
                         return (
                           <div

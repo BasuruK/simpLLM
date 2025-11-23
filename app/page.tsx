@@ -109,6 +109,7 @@ export default function Home() {
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [pdfPageCount, setPdfPageCount] = useState<number>(0);
+  const [selectedPdfPages, setSelectedPdfPages] = useState<number[]>([]);
   const hasReceivedDataRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const saveSuccessTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -942,6 +943,11 @@ export default function Home() {
                             onPress={onPdfDrawerOpen}
                           >
                             Mark Pages
+                            {selectedPdfPages.length > 0 && (
+                              <span className="ml-2 text-xs text-primary font-semibold">
+                                {selectedPdfPages.length} selected
+                              </span>
+                            )}
                           </Button>
                         )}
                       {!isDataExtracted && (
@@ -955,9 +961,70 @@ export default function Home() {
                             ) : undefined
                           }
                           variant="flat"
-                          onPress={() => {
+                          onPress={async () => {
+                            // If PDF pages are selected, process them as batch job
+                            if (
+                              selectedFiles.length === 1 &&
+                              selectedFiles[0].type === "application/pdf" &&
+                              selectedPdfPages.length > 0
+                            ) {
+                              const { PDFDocument } = await import("pdf-lib");
+                              const file = selectedFiles[0];
+                              const arrayBuffer = await file.arrayBuffer();
+                              const pdfDoc = await PDFDocument.load(arrayBuffer);
+                              const newFiles: File[] = [];
+
+                              for (const pageNum of selectedPdfPages) {
+                                const newPdf = await PDFDocument.create();
+
+                                const [copiedPage] = await newPdf.copyPages(
+                                  pdfDoc,
+                                  [pageNum - 1],
+                                );
+
+                                newPdf.addPage(copiedPage);
+
+                                const pdfBytes = await newPdf.save();
+
+                                const safeBuffer = new Uint8Array(pdfBytes);
+
+                                const pdfBlob = new Blob([safeBuffer.buffer], {
+                                  type: "application/pdf",
+                                });
+
+                                newFiles.push(
+                                  new File(
+                                    [pdfBlob],
+                                    `${file.name.replace(/\.pdf$/, "")}_page${pageNum}.pdf`,
+                                    { type: "application/pdf" },
+                                  ),
+                                );
+                              }
+
+                              if (newFiles.length > 0) {
+                                await startBatchJob(newFiles);
+                                setSelectedPdfPages([]);
+                                setLiveMessage(
+                                  `Started background processing of ${newFiles.length} selected pages as invoices.`,
+                                );
+                                setShowBatchNotification(true);
+                                if (batchNotificationTimeoutRef.current) {
+                                  clearTimeout(
+                                    batchNotificationTimeoutRef.current,
+                                  );
+                                }
+
+                                batchNotificationTimeoutRef.current = setTimeout(() => {
+                                  setShowBatchNotification(false);
+                                    batchNotificationTimeoutRef.current = null;
+                                }, 5000);
+                                handleClearImage();
+
+                                return;
+                              }
+                            }
+                            // Multiple files: process in background
                             if (selectedFiles.length > 1) {
-                              // Multiple files: process in background
                               processFiles(selectedFiles, true);
                               handleClearImage();
                             } else {
@@ -973,6 +1040,7 @@ export default function Home() {
                       )}
                       <Button
                         color={currentHistoryId ? "default" : "danger"}
+                        isIconOnly={!currentHistoryId}
                         startContent={
                           currentHistoryId ? (
                             <BackIcon size={18} />
@@ -983,7 +1051,7 @@ export default function Home() {
                         variant="flat"
                         onPress={handleClearImage}
                       >
-                        {currentHistoryId ? "Back" : "Remove"}
+                        {currentHistoryId ? "Back" : null}
                       </Button>
                     </div>
                   </div>
@@ -1068,7 +1136,7 @@ export default function Home() {
                     ) : extractedText ? (
                       <CodeEditor
                         language="json"
-                        minRows={34}
+                        minRows={43}
                         value={extractedText}
                       />
                     ) : null}
@@ -1495,6 +1563,8 @@ export default function Home() {
       <PdfPageDrawer
         file={selectedFiles[currentFileIndex]}
         isOpen={isPdfDrawerOpen}
+        selectedPages={selectedPdfPages}
+        setSelectedPages={setSelectedPdfPages}
         onOpenChange={onPdfDrawerOpenChange}
       />
     </>
