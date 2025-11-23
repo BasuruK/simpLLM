@@ -37,6 +37,7 @@
     "@heroui/badge": "^2.2.17",
     "@heroui/button": "2.2.27",
     "@heroui/card": "^2.2.25",
+    "@heroui/checkbox": "^2.3.27",
     "@heroui/drawer": "^2.2.24",
     "@heroui/dropdown": "^2.3.27",
     "@heroui/image": "2.2.17",
@@ -80,7 +81,7 @@
     "archiver": "^7.0.0",
     "concurrently": "^9.2.1",
     "cross-env": "^10.1.0",
-    "electron": "^38.4.0",
+    "electron": "^38.7.1",
     "electron-builder": "^26.0.12",
     "eslint": "^9.38.0",
     "eslint-config-next": "15.3.4",
@@ -108,6 +109,7 @@
     }
   },
   "optionalDependencies": {
+    "@next/swc-darwin-arm64": "^16.0.3",
     "sharp": "^0.34.4"
   }
 }

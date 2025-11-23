@@ -932,7 +932,8 @@ export default function Home() {
                     )}
 
                     <div className="flex gap-2 ml-auto">
-                      {selectedFiles[currentFileIndex]?.type === "application/pdf" &&
+                      {selectedFiles[currentFileIndex]?.type ===
+                        "application/pdf" &&
                         pdfPageCount > 1 && (
                           <Button
                             color="secondary"

@@ -47,6 +47,7 @@ class RateLimiter {
       this.running--;
       // Process next queued task if any
       const nextResolver = this.queue.shift();
+
       if (nextResolver) {
         nextResolver();
       }

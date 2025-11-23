@@ -894,13 +894,6 @@ export const StopIcon: React.FC<IconSvgProps> = ({
       strokeLinejoin="round"
       strokeWidth="1.5"
     />
-    <rect
-      fill="currentColor"
-      height="8"
-      rx="1"
-      width="8"
-      x="8"
-      y="8"
-    />
+    <rect fill="currentColor" height="8" rx="1" width="8" x="8" y="8" />
   </svg>
 );

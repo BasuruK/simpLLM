@@ -313,8 +313,8 @@ export const Navbar = ({
         onCancelJob={onCancelJob}
         onClearAll={clearAll}
         onMarkAsRead={markAsRead}
-        onRemove={removeNotification}
         onOpenChange={onNotificationOpenChange}
+        onRemove={removeNotification}
       />
     </HeroUINavbar>
   );

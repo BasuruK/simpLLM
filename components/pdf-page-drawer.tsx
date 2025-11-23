@@ -10,6 +10,7 @@ import {
   DrawerFooter,
 } from "@heroui/drawer";
 import { Button } from "@heroui/button";
+import { Checkbox } from "@heroui/checkbox";
 import { Spinner } from "@heroui/spinner";
 
 // Configure worker via lib/pdfjs-init
@@ -26,21 +27,39 @@ export function PdfPageDrawer({
   file,
 }: PdfPageDrawerProps) {
   const [numPages, setNumPages] = useState<number>(0);
+  const [selectedPages, setSelectedPages] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     setNumPages(0);
+    setSelectedPages(new Set());
   }, [isOpen, file]);
 
   function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
     setNumPages(numPages);
   }
 
+  const togglePageSelection = (pageNumber: number) => {
+    const newSelected = new Set(selectedPages);
+
+    if (newSelected.has(pageNumber)) {
+      newSelected.delete(pageNumber);
+    } else {
+      newSelected.add(pageNumber);
+    }
+    setSelectedPages(newSelected);
+  };
+
   return (
     <Drawer isOpen={isOpen} size="4xl" onOpenChange={onOpenChange}>
       <DrawerContent>
         {(onClose) => (
           <>
-            <DrawerHeader>PDF Pages</DrawerHeader>
+            <DrawerHeader className="flex justify-between items-center">
+              <span>PDF Pages</span>
+              <div className="text-small font-normal text-default-500">
+                {selectedPages.size} selected
+              </div>
+            </DrawerHeader>
             <DrawerBody>
               {file && (
                 <div className="flex flex-col items-center gap-6 pb-6">
@@ -59,25 +78,58 @@ export function PdfPageDrawer({
                     onLoadSuccess={onDocumentLoadSuccess}
                   >
                     <div className="grid grid-cols-3 gap-4 w-full">
-                      {Array.from(new Array(numPages), (el, index) => (
-                        <div
-                          key={`page_${index + 1}`}
-                          className="flex w-full flex-col items-center gap-2"
-                        >
-                          <div className="text-small text-default-500 font-medium">
-                            Page {index + 1}
+                      {Array.from(new Array(numPages), (el, index) => {
+                        const pageNum = index + 1;
+                        const isSelected = selectedPages.has(pageNum);
+
+                        return (
+                          <div
+                            key={`page_${pageNum}`}
+                            className="flex w-full flex-col items-center gap-2"
+                          >
+                            <div className="text-small text-default-500 font-medium">
+                              Page {pageNum}
+                            </div>
+                            <div className="relative group">
+                              <div className="absolute top-2 right-2 z-10">
+                                <Checkbox
+                                  classNames={{
+                                    wrapper:
+                                      "bg-white/80 backdrop-blur-sm rounded-md",
+                                  }}
+                                  isSelected={isSelected}
+                                  onValueChange={() =>
+                                    togglePageSelection(pageNum)
+                                  }
+                                />
+                              </div>
+                              <div
+                                className={`shadow-md rounded-lg overflow-hidden border transition-colors cursor-pointer ${
+                                  isSelected
+                                    ? "border-primary border-2"
+                                    : "border-default-200 bg-white"
+                                }`}
+                                role="button"
+                                tabIndex={0}
+                                onClick={() => togglePageSelection(pageNum)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" || e.key === " ") {
+                                    togglePageSelection(pageNum);
+                                  }
+                                }}
+                              >
+                                <Page
+                                  className="max-w-full h-auto block"
+                                  pageNumber={pageNum}
+                                  renderAnnotationLayer={false}
+                                  renderTextLayer={false}
+                                  width={250}
+                                />
+                              </div>
+                            </div>
                           </div>
-                          <div className="shadow-md rounded-lg overflow-hidden border border-default-200 bg-white">
-                            <Page
-                              className="max-w-full h-auto"
-                              pageNumber={index + 1}
-                              renderAnnotationLayer={false}
-                              renderTextLayer={false}
-                              width={250}
-                            />
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </Document>
                 </div>
@@ -86,6 +138,9 @@ export function PdfPageDrawer({
             <DrawerFooter>
               <Button color="danger" variant="light" onPress={onClose}>
                 Close
+              </Button>
+              <Button color="primary" onPress={onClose}>
+                Confirm Selection
               </Button>
             </DrawerFooter>
           </>

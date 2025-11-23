@@ -210,10 +210,7 @@ function extractDataFromResponse(result: any): any {
 /**
  * Extract usage statistics from API response
  */
-function extractUsageStats(
-  result: any,
-  durationMs: number,
-): ExtractionUsage {
+function extractUsageStats(result: any, durationMs: number): ExtractionUsage {
   const usage = result.usage || {};
   const inputTokens = usage.input_tokens || 0;
   const outputTokens = usage.output_tokens || 0;
