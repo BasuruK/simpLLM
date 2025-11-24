@@ -1,0 +1,12 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Add pdfjs-dist to dependencies and install",
+			"type": "shell",
+			"command": "npm install pdfjs-dist@^3.11.174",
+			"args": [],
+			"group": "build"
+		}
+	]
+}
