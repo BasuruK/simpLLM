@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Document, Page } from "react-pdf";
+import "@/lib/pdfjs-init";
 import {
   Drawer,
   DrawerContent,
@@ -12,8 +13,6 @@ import {
 import { Button } from "@heroui/button";
 import { Checkbox } from "@heroui/checkbox";
 import { Spinner } from "@heroui/spinner";
-
-// Configure worker via lib/pdfjs-init
 
 interface PdfPageDrawerProps {
   isOpen: boolean;
@@ -42,6 +41,7 @@ export function PdfPageDrawer({
 
   const togglePageSelection = (pageNumber: number) => {
     let newSelected: number[];
+
     if (selectedPages.includes(pageNumber)) {
       newSelected = selectedPages.filter((p) => p !== pageNumber);
     } else {
