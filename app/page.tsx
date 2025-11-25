@@ -962,40 +962,73 @@ export default function Home() {
                           }
                           variant="flat"
                           onPress={async () => {
-                            // If PDF pages are selected, process them as batch job
+                            // If PDF is attached and no pages are selected, run live extraction
                             if (
                               selectedFiles.length === 1 &&
                               selectedFiles[0].type === "application/pdf" &&
+                              pdfPageCount > 0 &&
+                              selectedPdfPages.length === 0
+                            ) {
+                              // Run live extraction for the whole PDF
+                              await handleExtractData();
+                              return;
+                            }
+                            // If PDF pages are selected, process them as batch job with grouping logic
+                            if (
+                              selectedFiles.length === 1 &&
+                              selectedFiles[0].type === "application/pdf" &&
+                              pdfPageCount > 0 &&
                               selectedPdfPages.length > 0
                             ) {
                               const { PDFDocument } = await import("pdf-lib");
                               const file = selectedFiles[0];
                               const arrayBuffer = await file.arrayBuffer();
                               const pdfDoc = await PDFDocument.load(arrayBuffer);
+                              const groups: number[][] = [];
+                              let currentGroup: number[] = [];
+
+                              // Build groups: selected pages start new group, unselected pages go to previous group
+                              for (let i = 1; i <= pdfPageCount; i++) {
+                                if (selectedPdfPages.includes(i)) {
+                                  // Start new group for selected page
+                                  if (currentGroup.length > 0) {
+                                    groups.push(currentGroup);
+                                  }
+                                  currentGroup = [i];
+                                } else {
+                                  // Unselected page: add to previous group
+                                  currentGroup.push(i);
+                                }
+                              }
+                              if (currentGroup.length > 0) {
+                                groups.push(currentGroup);
+                              }
+
                               const newFiles: File[] = [];
 
-                              for (const pageNum of selectedPdfPages) {
+                              for (const group of groups) {
                                 const newPdf = await PDFDocument.create();
-
-                                const [copiedPage] = await newPdf.copyPages(
+                                const copiedPages = await newPdf.copyPages(
                                   pdfDoc,
-                                  [pageNum - 1],
+                                  group.map((p) => p - 1),
                                 );
 
-                                newPdf.addPage(copiedPage);
-
+                                copiedPages.forEach((page) =>
+                                  newPdf.addPage(page),
+                                );
                                 const pdfBytes = await newPdf.save();
-
                                 const safeBuffer = new Uint8Array(pdfBytes);
-
                                 const pdfBlob = new Blob([safeBuffer.buffer], {
                                   type: "application/pdf",
                                 });
+                                const nameSuffix = group.length === 1
+                                  ? `_page${group[0]}`
+                                  : `_pages${group.join("-")}`;
 
                                 newFiles.push(
                                   new File(
                                     [pdfBlob],
-                                    `${file.name.replace(/\.pdf$/, "")}_page${pageNum}.pdf`,
+                                    `${file.name.replace(/\.pdf$/, "")}${nameSuffix}.pdf`,
                                     { type: "application/pdf" },
                                   ),
                                 );
@@ -1005,7 +1038,7 @@ export default function Home() {
                                 await startBatchJob(newFiles);
                                 setSelectedPdfPages([]);
                                 setLiveMessage(
-                                  `Started background processing of ${newFiles.length} selected pages as invoices.`,
+                                  `Started background processing of ${newFiles.length} invoices (grouped by selection).`,
                                 );
                                 setShowBatchNotification(true);
                                 if (batchNotificationTimeoutRef.current) {
@@ -1016,7 +1049,7 @@ export default function Home() {
 
                                 batchNotificationTimeoutRef.current = setTimeout(() => {
                                   setShowBatchNotification(false);
-                                    batchNotificationTimeoutRef.current = null;
+                                  batchNotificationTimeoutRef.current = null;
                                 }, 5000);
                                 handleClearImage();
 
@@ -1134,11 +1167,7 @@ export default function Home() {
                         </Skeleton>
                       </div>
                     ) : extractedText ? (
-                      <CodeEditor
-                        language="json"
-                        minRows={43}
-                        value={extractedText}
-                      />
+                      <CodeEditor language="json" value={extractedText} />
                     ) : null}
                   </Card>
                 )}

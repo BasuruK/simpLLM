@@ -90,7 +90,7 @@ function highlightJSON(jsonString: string): JSX.Element[] {
 
 export function CodeEditor({
   value,
-  minRows = 25,
+  minRows = 39,
   maxRows,
   language = "json",
 }: CodeEditorProps) {

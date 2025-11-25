@@ -10,7 +10,7 @@ interface FilePreviewProps {
 }
 
 const DEFAULT_ROWS = 25;
-const ROW_HEIGHT_REM = 1.9; // Match line-height from code-editor
+const ROW_HEIGHT_REM = 1.65; // Match line-height from code-editor
 const CONTAINER_PADDING = 1.9;
 
 export function FilePreview({
