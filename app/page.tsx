@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import dynamic from "next/dynamic";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Navigation, Pagination, Keyboard } from "swiper/modules";
@@ -74,9 +74,13 @@ import {
   deleteFileBlob,
   generateThumbnail,
   clearAllFileBlobs,
+  saveSelectedPages,
+  getSelectedPages,
+  deleteSelectedPages,
 } from "@/lib/file-storage";
 import { useJobManager } from "@/hooks/use-job-manager";
 import { HistoryItem } from "@/types";
+import { PDFDocument } from "pdf-lib";
 
 const PdfPageDrawer = dynamic(
   () => import("@/components/pdf-page-drawer").then((mod) => mod.PdfPageDrawer),
@@ -109,7 +113,32 @@ export default function Home() {
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [pdfPageCount, setPdfPageCount] = useState<number>(0);
+
+  // Reset pdfPageCount to 0 whenever the current file changes
+  useEffect(() => {
+    setPdfPageCount(0);
+  }, [selectedFiles, currentFileIndex]);
   const [selectedPdfPages, setSelectedPdfPages] = useState<number[]>([]);
+  const [selectedPagesMap, setSelectedPagesMap] = useState<Record<string, number[]>>({});
+  const invoiceCount = useMemo(() => {
+    if (selectedPdfPages.length === 0) return 0;
+    let count = 0;
+    let currentGroup: number[] = [];
+    for (let i = 1; i <= pdfPageCount; i++) {
+      if (selectedPdfPages.includes(i)) {
+        if (currentGroup.length > 0) {
+          count++;
+        }
+        currentGroup = [i];
+      } else {
+        currentGroup.push(i);
+      }
+    }
+    if (currentGroup.length > 0) {
+      count++;
+    }
+    return count;
+  }, [selectedPdfPages, pdfPageCount]);
   const hasReceivedDataRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const saveSuccessTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -128,6 +157,7 @@ export default function Home() {
   const {
     isOpen: isPdfDrawerOpen,
     onOpen: onPdfDrawerOpen,
+    onClose: onPdfDrawerClose,
     onOpenChange: onPdfDrawerOpenChange,
   } = useDisclosure();
   const { startBatchJob, activeJobCount, cancelJob } = useJobManager({
@@ -145,7 +175,7 @@ export default function Home() {
     }
   };
 
-  const processFiles = async (files: File[], processInBackground = false) => {
+  const processFiles = async (files: File[]) => {
     // Filter valid files (images and PDFs)
     const validFiles = files.filter(
       (file) =>
@@ -169,56 +199,6 @@ export default function Home() {
       return;
     }
 
-    // If multiple files and background processing requested
-    if (validFiles.length > 1 && processInBackground) {
-      // Start batch job in background with error handling
-      try {
-        await startBatchJob(validFiles);
-
-        // Show confirmation message only on success
-        setLiveMessage(
-          `Started background processing of ${validFiles.length} files. Check notifications for progress.`,
-        );
-
-        // Show toast notification
-        setShowBatchNotification(true);
-
-        // Clear any existing timeout
-        if (batchNotificationTimeoutRef.current) {
-          clearTimeout(batchNotificationTimeoutRef.current);
-        }
-
-        // Auto-hide after 5 seconds
-        batchNotificationTimeoutRef.current = setTimeout(() => {
-          setShowBatchNotification(false);
-          batchNotificationTimeoutRef.current = null;
-        }, 5000);
-      } catch (error) {
-        // Log the error for debugging
-        // eslint-disable-next-line no-console
-        console.error("Failed to start batch job:", error);
-
-        // Set error message for screen readers and UI
-        const errorMessage =
-          error instanceof Error
-            ? error.message
-            : "Failed to start background processing";
-
-        setLiveMessage(`Error: ${errorMessage}`);
-
-        // Ensure notification stays hidden on error
-        setShowBatchNotification(false);
-
-        // Clear any existing timeout
-        if (batchNotificationTimeoutRef.current) {
-          clearTimeout(batchNotificationTimeoutRef.current);
-          batchNotificationTimeoutRef.current = null;
-        }
-      }
-
-      return;
-    }
-
     // Normal single-file or preview workflow
     // Clean up old URLs from ref (not stale state)
     fileUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
@@ -233,6 +213,35 @@ export default function Home() {
     setFileUrls(urls);
     setCurrentFileIndex(0);
     setLiveMessage(`Viewing file 1 of ${validFiles.length}`);
+
+    // Load persisted selections for all files (non-blocking)
+    (async () => {
+      try {
+        const entries: Record<string, number[]> = {};
+
+        await Promise.all(
+          validFiles.map(async (file) => {
+            const id = `${file.name}_${file.size}_${file.lastModified}`;
+            try {
+              const pages = await getSelectedPages(id);
+              if (pages && Array.isArray(pages) && pages.length > 0) {
+                entries[id] = pages;
+              }
+            } catch {
+              // ignore
+            }
+          }),
+        );
+
+        setSelectedPagesMap(entries);
+        const firstId = validFiles.length > 0 ? `${validFiles[0].name}_${validFiles[0].size}_${validFiles[0].lastModified}` : null;
+        if (firstId) {
+          setSelectedPdfPages(entries[firstId] || []);
+        }
+      } catch {
+        // ignore
+      }
+    })();
   };
 
   const handleDragEnter = (e: React.DragEvent<HTMLElement>) => {
@@ -275,7 +284,10 @@ export default function Home() {
     fileInputRef.current?.click();
   };
 
-  // Check PDF page count
+  // PDF page count is now set via PdfPageDrawer's onNumPages callback
+
+  // Also proactively check page count when a file is viewed to avoid
+  // depending solely on the drawer's load (helps when drawer isn't opened).
   useEffect(() => {
     let isCancelled = false;
     let loadingTask: any = null;
@@ -600,6 +612,7 @@ export default function Home() {
     // Revoke all file URLs to free memory
     fileUrlsRef.current?.forEach((url) => URL.revokeObjectURL(url));
     fileUrlsRef.current = [];
+    const filesToClear = selectedFiles.slice();
     setSelectedFiles([]);
     setFileUrls([]);
     setCurrentFileIndex(0);
@@ -611,10 +624,67 @@ export default function Home() {
     setJsonContent("");
     setExtractionUsage(null);
     setCurrentHistoryId(null); // Clear history ID
+    // Best-effort: remove persisted selections for cleared files
+    if (filesToClear && filesToClear.length > 0) {
+      filesToClear.forEach((file) => {
+        const id = `${file.name}_${file.size}_${file.lastModified}`;
+        deleteSelectedPages(id).catch(() => {});
+      });
+    }
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
   };
+
+  // Persist selected pages to IndexedDB for the current file whenever they change
+  useEffect(() => {
+    const currentFile = selectedFiles[currentFileIndex];
+
+    if (!currentFile) return;
+
+    const id = `${currentFile.name}_${currentFile.size}_${currentFile.lastModified}`;
+
+    // If there are no selected pages, remove any persisted entry
+    if (!selectedPdfPages || selectedPdfPages.length === 0) {
+      deleteSelectedPages(id).catch(() => {});
+      return;
+    }
+
+    saveSelectedPages(id, selectedPdfPages).catch(() => {});
+  }, [selectedPdfPages, selectedFiles, currentFileIndex]);
+
+  // Load persisted selected pages when the current file changes
+  useEffect(() => {
+    const loadSelections = async () => {
+      const currentFile = selectedFiles[currentFileIndex];
+
+      if (!currentFile) {
+        setSelectedPdfPages([]);
+        return;
+      }
+
+      const id = `${currentFile.name}_${currentFile.size}_${currentFile.lastModified}`;
+
+      try {
+        const pages = await getSelectedPages(id);
+
+        if (pages && Array.isArray(pages)) {
+          setSelectedPdfPages(pages);
+        } else {
+          setSelectedPdfPages([]);
+        }
+      } catch {
+        setSelectedPdfPages([]);
+      }
+    };
+
+    loadSelections();
+  }, [selectedFiles, currentFileIndex]);
+
+  // Close PDF drawer when switching files to ensure clean state
+  useEffect(() => {
+    onPdfDrawerClose();
+  }, [currentFileIndex]);
 
   const handleExtractData = useCallback(async () => {
     // Validate bounds before accessing array
@@ -695,6 +765,57 @@ export default function Home() {
     } catch {
       // Silently fail - clipboard errors are not critical
     }
+  };
+
+  const getProcessedFiles = async (files: File[]): Promise<File[]> => {
+    const processed: File[] = [];
+    for (const file of files) {
+      if (file.type === "application/pdf") {
+        const id = `${file.name}_${file.size}_${file.lastModified}`;
+        const selected = selectedPagesMap[id] || [];
+        if (selected.length > 0) {
+          // split the PDF
+          const arrayBuffer = await file.arrayBuffer();
+          const pdfDoc = await PDFDocument.load(arrayBuffer);
+          const numPages = pdfDoc.getPageCount();
+          const groups: number[][] = [];
+          let currentGroup: number[] = [];
+          for (let i = 1; i <= numPages; i++) {
+            if (selected.includes(i)) {
+              if (currentGroup.length > 0) {
+                groups.push(currentGroup);
+              }
+              currentGroup = [i];
+            } else {
+              currentGroup.push(i);
+            }
+          }
+          if (currentGroup.length > 0) {
+            groups.push(currentGroup);
+          }
+          for (const group of groups) {
+            const newPdf = await PDFDocument.create();
+            const copiedPages = await newPdf.copyPages(
+              pdfDoc,
+              group.map((p) => p - 1),
+            );
+            copiedPages.forEach((page) => newPdf.addPage(page));
+            const pdfBytes = await newPdf.save();
+            const pdfBlob = new Blob([new Uint8Array(pdfBytes)], { type: "application/pdf" });
+            const nameSuffix = group.length === 1 ? `_page${group[0]}` : `_pages${group.join("-")}`;
+
+            processed.push(
+              new File([pdfBlob], `${file.name.replace(/\.pdf$/, "")}${nameSuffix}.pdf`, { type: "application/pdf" }),
+            );
+          }
+        } else {
+          processed.push(file);
+        }
+      } else {
+        processed.push(file);
+      }
+    }
+    return processed;
   };
 
   // Extract text from system prompt structure
@@ -892,6 +1013,7 @@ export default function Home() {
                             fileUrl={fileUrls[index]}
                             minRows={34}
                             totalFiles={selectedFiles.length}
+                            selectedPages={selectedPagesMap[`${file.name}_${file.size}_${file.lastModified}`] || []}
                           />
                         </SwiperSlide>
                       ))}
@@ -943,9 +1065,9 @@ export default function Home() {
                             onPress={onPdfDrawerOpen}
                           >
                             Mark Pages
-                            {selectedPdfPages.length > 0 && (
+                            {invoiceCount > 0 && (
                               <span className="ml-2 text-xs text-primary font-semibold">
-                                {selectedPdfPages.length} selected
+                                {invoiceCount} invoice{invoiceCount !== 1 ? 's' : ''}
                               </span>
                             )}
                           </Button>
@@ -962,107 +1084,24 @@ export default function Home() {
                           }
                           variant="flat"
                           onPress={async () => {
-                            // If PDF is attached and no pages are selected, run live extraction
-                            if (
-                              selectedFiles.length === 1 &&
-                              selectedFiles[0].type === "application/pdf" &&
-                              pdfPageCount > 0 &&
-                              selectedPdfPages.length === 0
-                            ) {
-                              // Run live extraction for the whole PDF
-                              await handleExtractData();
-                              return;
-                            }
-                            // If PDF pages are selected, process them as batch job with grouping logic
-                            if (
-                              selectedFiles.length === 1 &&
-                              selectedFiles[0].type === "application/pdf" &&
-                              pdfPageCount > 0 &&
-                              selectedPdfPages.length > 0
-                            ) {
-                              const { PDFDocument } = await import("pdf-lib");
-                              const file = selectedFiles[0];
-                              const arrayBuffer = await file.arrayBuffer();
-                              const pdfDoc = await PDFDocument.load(arrayBuffer);
-                              const groups: number[][] = [];
-                              let currentGroup: number[] = [];
-
-                              // Build groups: selected pages start new group, unselected pages go to previous group
-                              for (let i = 1; i <= pdfPageCount; i++) {
-                                if (selectedPdfPages.includes(i)) {
-                                  // Start new group for selected page
-                                  if (currentGroup.length > 0) {
-                                    groups.push(currentGroup);
-                                  }
-                                  currentGroup = [i];
-                                } else {
-                                  // Unselected page: add to previous group
-                                  currentGroup.push(i);
-                                }
+                            const processedFiles = await getProcessedFiles(selectedFiles);
+                            if (processedFiles.length > 1 || (processedFiles.length === 1 && processedFiles[0] !== selectedFiles[0])) {
+                              await startBatchJob(processedFiles);
+                              setLiveMessage(
+                                `Started background processing of ${processedFiles.length} invoice${processedFiles.length !== 1 ? 's' : ''}.`,
+                              );
+                              setShowBatchNotification(true);
+                              if (batchNotificationTimeoutRef.current) {
+                                clearTimeout(batchNotificationTimeoutRef.current);
                               }
-                              if (currentGroup.length > 0) {
-                                groups.push(currentGroup);
-                              }
-
-                              const newFiles: File[] = [];
-
-                              for (const group of groups) {
-                                const newPdf = await PDFDocument.create();
-                                const copiedPages = await newPdf.copyPages(
-                                  pdfDoc,
-                                  group.map((p) => p - 1),
-                                );
-
-                                copiedPages.forEach((page) =>
-                                  newPdf.addPage(page),
-                                );
-                                const pdfBytes = await newPdf.save();
-                                const safeBuffer = new Uint8Array(pdfBytes);
-                                const pdfBlob = new Blob([safeBuffer.buffer], {
-                                  type: "application/pdf",
-                                });
-                                const nameSuffix = group.length === 1
-                                  ? `_page${group[0]}`
-                                  : `_pages${group.join("-")}`;
-
-                                newFiles.push(
-                                  new File(
-                                    [pdfBlob],
-                                    `${file.name.replace(/\.pdf$/, "")}${nameSuffix}.pdf`,
-                                    { type: "application/pdf" },
-                                  ),
-                                );
-                              }
-
-                              if (newFiles.length > 0) {
-                                await startBatchJob(newFiles);
-                                setSelectedPdfPages([]);
-                                setLiveMessage(
-                                  `Started background processing of ${newFiles.length} invoices (grouped by selection).`,
-                                );
-                                setShowBatchNotification(true);
-                                if (batchNotificationTimeoutRef.current) {
-                                  clearTimeout(
-                                    batchNotificationTimeoutRef.current,
-                                  );
-                                }
-
-                                batchNotificationTimeoutRef.current = setTimeout(() => {
-                                  setShowBatchNotification(false);
-                                  batchNotificationTimeoutRef.current = null;
-                                }, 5000);
-                                handleClearImage();
-
-                                return;
-                              }
-                            }
-                            // Multiple files: process in background
-                            if (selectedFiles.length > 1) {
-                              processFiles(selectedFiles, true);
+                              batchNotificationTimeoutRef.current = setTimeout(() => {
+                                setShowBatchNotification(false);
+                                batchNotificationTimeoutRef.current = null;
+                              }, 5000);
                               handleClearImage();
                             } else {
-                              // Single file: extract directly
-                              handleExtractData();
+                              // Single file, no splitting
+                              await handleExtractData();
                             }
                           }}
                         >
@@ -1593,8 +1632,19 @@ export default function Home() {
         file={selectedFiles[currentFileIndex]}
         isOpen={isPdfDrawerOpen}
         selectedPages={selectedPdfPages}
-        setSelectedPages={setSelectedPdfPages}
+        setSelectedPages={(pages: number[]) => {
+          setSelectedPdfPages(pages);
+          // persist in-memory map too
+          const currentFile = selectedFiles[currentFileIndex];
+          if (currentFile) {
+            const id = `${currentFile.name}_${currentFile.size}_${currentFile.lastModified}`;
+            setSelectedPagesMap((prev) => ({ ...prev, [id]: pages }));
+            // persist to IndexedDB (fire-and-forget)
+            saveSelectedPages(id, pages).catch(() => {});
+          }
+        }}
         onOpenChange={onPdfDrawerOpenChange}
+        onNumPages={setPdfPageCount}
       />
     </>
   );
