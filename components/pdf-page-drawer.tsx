@@ -20,6 +20,7 @@ interface PdfPageDrawerProps {
   file: File | null;
   selectedPages: number[];
   setSelectedPages: (pages: number[]) => void;
+  onNumPages?: (numPages: number) => void;
 }
 
 export function PdfPageDrawer({
@@ -28,15 +29,19 @@ export function PdfPageDrawer({
   file,
   selectedPages,
   setSelectedPages,
+  onNumPages,
 }: PdfPageDrawerProps) {
-  const [numPages, setNumPages] = useState<number>(0);
+  const [localNumPages, setLocalNumPages] = useState<number>(0);
 
   useEffect(() => {
-    setNumPages(0);
+    setLocalNumPages(0);
   }, [isOpen, file]);
 
   function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
-    setNumPages(numPages);
+    setLocalNumPages(numPages);
+    if (onNumPages) {
+      onNumPages(numPages);
+    }
   }
 
   const togglePageSelection = (pageNumber: number) => {
@@ -85,7 +90,7 @@ export function PdfPageDrawer({
                     onLoadSuccess={onDocumentLoadSuccess}
                   >
                     <div className="grid grid-cols-3 gap-4 w-full">
-                      {Array.from(new Array(numPages), (el, index) => {
+                      {Array.from(new Array(localNumPages), (el, index) => {
                         const pageNum = index + 1;
                         const isSelected = selectedPages.includes(pageNum);
 
