@@ -54,6 +54,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
           // Only apply loaded data if state is still empty and saved has data
           if (current.length === 0 && saved.length > 0) {
             hasHydratedRef.current = true;
+
             return saved;
           }
 
@@ -75,6 +76,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
 
     if (hasHydratedRef.current) {
       hasHydratedRef.current = false;
+
       return;
     }
 

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import dynamic from "next/dynamic";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Navigation, Pagination, Keyboard } from "swiper/modules";
 import "swiper/css";
@@ -28,6 +29,7 @@ import {
   ModalFooter,
   useDisclosure,
 } from "@heroui/modal";
+import { PDFDocument } from "pdf-lib";
 
 import { extractDataFromFile, ExtractionUsage } from "@/lib/openai";
 import {
@@ -73,9 +75,17 @@ import {
   deleteFileBlob,
   generateThumbnail,
   clearAllFileBlobs,
+  saveSelectedPages,
+  getSelectedPages,
+  deleteSelectedPages,
 } from "@/lib/file-storage";
 import { useJobManager } from "@/hooks/use-job-manager";
 import { HistoryItem } from "@/types";
+
+const PdfPageDrawer = dynamic(
+  () => import("@/components/pdf-page-drawer").then((mod) => mod.PdfPageDrawer),
+  { ssr: false },
+);
 
 export default function Home() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -102,6 +112,39 @@ export default function Home() {
   const [currentHistoryId, setCurrentHistoryId] = useState<string | null>(null);
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [pdfPageCount, setPdfPageCount] = useState<number>(0);
+  const [isProcessingPdf, setIsProcessingPdf] = useState(false);
+
+  // Reset pdfPageCount to 0 whenever the current file changes
+  useEffect(() => {
+    setPdfPageCount(0);
+  }, [selectedFiles, currentFileIndex]);
+  const [selectedPagesMap, setSelectedPagesMap] = useState<Record<string, number[]>>({});
+  const invoiceCount = useMemo(() => {
+    const currentFile = selectedFiles[currentFileIndex];
+    if (!currentFile) return 0;
+    const id = `${currentFile.name}_${currentFile.size}_${currentFile.lastModified}`;
+    const selected = selectedPagesMap[id] || [];
+    if (selected.length === 0) return 0;
+    let count = 0;
+    let currentGroup: number[] = [];
+
+    for (let i = 1; i <= pdfPageCount; i++) {
+      if (selected.includes(i)) {
+        if (currentGroup.length > 0) {
+          count++;
+        }
+        currentGroup = [i];
+      } else {
+        currentGroup.push(i);
+      }
+    }
+    if (currentGroup.length > 0) {
+      count++;
+    }
+
+    return count;
+  }, [selectedPagesMap, pdfPageCount, selectedFiles, currentFileIndex]);
   const hasReceivedDataRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const saveSuccessTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -116,6 +159,12 @@ export default function Home() {
     isOpen: isClearModalOpen,
     onOpen: onClearModalOpen,
     onOpenChange: onClearModalOpenChange,
+  } = useDisclosure();
+  const {
+    isOpen: isPdfDrawerOpen,
+    onOpen: onPdfDrawerOpen,
+    onClose: onPdfDrawerClose,
+    onOpenChange: onPdfDrawerOpenChange,
   } = useDisclosure();
   const { startBatchJob, activeJobCount, cancelJob } = useJobManager({
     onJobComplete: () => {
@@ -132,7 +181,7 @@ export default function Home() {
     }
   };
 
-  const processFiles = async (files: File[], processInBackground = false) => {
+  const processFiles = async (files: File[]) => {
     // Filter valid files (images and PDFs)
     const validFiles = files.filter(
       (file) =>
@@ -156,56 +205,6 @@ export default function Home() {
       return;
     }
 
-    // If multiple files and background processing requested
-    if (validFiles.length > 1 && processInBackground) {
-      // Start batch job in background with error handling
-      try {
-        await startBatchJob(validFiles);
-
-        // Show confirmation message only on success
-        setLiveMessage(
-          `Started background processing of ${validFiles.length} files. Check notifications for progress.`,
-        );
-
-        // Show toast notification
-        setShowBatchNotification(true);
-
-        // Clear any existing timeout
-        if (batchNotificationTimeoutRef.current) {
-          clearTimeout(batchNotificationTimeoutRef.current);
-        }
-
-        // Auto-hide after 5 seconds
-        batchNotificationTimeoutRef.current = setTimeout(() => {
-          setShowBatchNotification(false);
-          batchNotificationTimeoutRef.current = null;
-        }, 5000);
-      } catch (error) {
-        // Log the error for debugging
-        // eslint-disable-next-line no-console
-        console.error("Failed to start batch job:", error);
-
-        // Set error message for screen readers and UI
-        const errorMessage =
-          error instanceof Error
-            ? error.message
-            : "Failed to start background processing";
-
-        setLiveMessage(`Error: ${errorMessage}`);
-
-        // Ensure notification stays hidden on error
-        setShowBatchNotification(false);
-
-        // Clear any existing timeout
-        if (batchNotificationTimeoutRef.current) {
-          clearTimeout(batchNotificationTimeoutRef.current);
-          batchNotificationTimeoutRef.current = null;
-        }
-      }
-
-      return;
-    }
-
     // Normal single-file or preview workflow
     // Clean up old URLs from ref (not stale state)
     fileUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
@@ -220,6 +219,33 @@ export default function Home() {
     setFileUrls(urls);
     setCurrentFileIndex(0);
     setLiveMessage(`Viewing file 1 of ${validFiles.length}`);
+
+    // Load persisted selections for all files (non-blocking)
+    (async () => {
+      try {
+        const entries: Record<string, number[]> = {};
+
+        await Promise.all(
+          validFiles.map(async (file) => {
+            const id = `${file.name}_${file.size}_${file.lastModified}`;
+
+            try {
+              const pages = await getSelectedPages(id);
+
+              if (pages && Array.isArray(pages) && pages.length > 0) {
+                entries[id] = pages;
+              }
+            } catch {
+              // ignore
+            }
+          }),
+        );
+
+        setSelectedPagesMap(entries);
+      } catch {
+        // ignore
+      }
+    })();
   };
 
   const handleDragEnter = (e: React.DragEvent<HTMLElement>) => {
@@ -261,6 +287,55 @@ export default function Home() {
   const handleButtonClick = () => {
     fileInputRef.current?.click();
   };
+
+  // PDF page count is now set via PdfPageDrawer's onNumPages callback
+
+  // Also proactively check page count when a file is viewed to avoid
+  // depending solely on the drawer's load (helps when drawer isn't opened).
+  useEffect(() => {
+    let isCancelled = false;
+    let loadingTask: any = null;
+    const capturedIndex = currentFileIndex;
+
+    const checkPdfPages = async () => {
+      const currentFile = selectedFiles[capturedIndex];
+      const currentUrl = fileUrls[capturedIndex];
+
+      if (currentFile && currentFile.type === "application/pdf" && currentUrl) {
+        try {
+          const { pdfjs } = await import("react-pdf");
+
+          if (isCancelled) return;
+
+          loadingTask = pdfjs.getDocument(currentUrl);
+          const pdf = await loadingTask.promise;
+
+          if (!isCancelled && capturedIndex === currentFileIndex) {
+            setPdfPageCount(pdf.numPages);
+          }
+        } catch (error) {
+          if (!isCancelled && capturedIndex === currentFileIndex) {
+            // eslint-disable-next-line no-console
+            console.error("Error checking PDF pages:", error);
+            setPdfPageCount(0);
+          }
+        }
+      } else {
+        if (!isCancelled && capturedIndex === currentFileIndex) {
+          setPdfPageCount(0);
+        }
+      }
+    };
+
+    checkPdfPages();
+
+    return () => {
+      isCancelled = true;
+      if (loadingTask) {
+        loadingTask.destroy().catch(() => {});
+      }
+    };
+  }, [selectedFiles, currentFileIndex, fileUrls]);
 
   // Load history on mount
   useEffect(() => {
@@ -541,6 +616,8 @@ export default function Home() {
     // Revoke all file URLs to free memory
     fileUrlsRef.current?.forEach((url) => URL.revokeObjectURL(url));
     fileUrlsRef.current = [];
+    const filesToClear = selectedFiles.slice();
+
     setSelectedFiles([]);
     setFileUrls([]);
     setCurrentFileIndex(0);
@@ -552,10 +629,24 @@ export default function Home() {
     setJsonContent("");
     setExtractionUsage(null);
     setCurrentHistoryId(null); // Clear history ID
+    // Best-effort: remove persisted selections for cleared files
+    if (filesToClear && filesToClear.length > 0) {
+      filesToClear.forEach((file) => {
+        const id = `${file.name}_${file.size}_${file.lastModified}`;
+
+        deleteSelectedPages(id).catch(() => {});
+      });
+    }
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
   };
+
+
+  // Close PDF drawer when switching files to ensure clean state
+  useEffect(() => {
+    onPdfDrawerClose();
+  }, [currentFileIndex, onPdfDrawerClose]);
 
   const handleExtractData = useCallback(async () => {
     // Validate bounds before accessing array
@@ -636,6 +727,71 @@ export default function Home() {
     } catch {
       // Silently fail - clipboard errors are not critical
     }
+  };
+
+  const getProcessedFiles = async (files: File[]): Promise<File[]> => {
+    const processed: File[] = [];
+
+    for (const file of files) {
+      if (file.type === "application/pdf") {
+        const id = `${file.name}_${file.size}_${file.lastModified}`;
+        const selected = selectedPagesMap[id] || [];
+
+        if (selected.length > 0) {
+          // split the PDF
+          const arrayBuffer = await file.arrayBuffer();
+          const pdfDoc = await PDFDocument.load(arrayBuffer);
+          const numPages = pdfDoc.getPageCount();
+          const groups: number[][] = [];
+          let currentGroup: number[] = [];
+
+          for (let i = 1; i <= numPages; i++) {
+            if (selected.includes(i)) {
+              if (currentGroup.length > 0) {
+                groups.push(currentGroup);
+              }
+              currentGroup = [i];
+            } else {
+              currentGroup.push(i);
+            }
+          }
+          if (currentGroup.length > 0) {
+            groups.push(currentGroup);
+          }
+          for (const group of groups) {
+            const newPdf = await PDFDocument.create();
+            const copiedPages = await newPdf.copyPages(
+              pdfDoc,
+              group.map((p) => p - 1),
+            );
+
+            copiedPages.forEach((page) => newPdf.addPage(page));
+            const pdfBytes = await newPdf.save();
+            const pdfBlob = new Blob([new Uint8Array(pdfBytes)], {
+              type: "application/pdf",
+            });
+            const nameSuffix =
+              group.length === 1
+                ? `_page${group[0]}`
+                : `_pages${group.join("-")}`;
+
+            processed.push(
+              new File(
+                [pdfBlob],
+                `${file.name.replace(/\.pdf$/, "")}${nameSuffix}.pdf`,
+                { type: "application/pdf" },
+              ),
+            );
+          }
+        } else {
+          processed.push(file);
+        }
+      } else {
+        processed.push(file);
+      }
+    }
+
+    return processed;
   };
 
   // Extract text from system prompt structure
@@ -780,7 +936,7 @@ export default function Home() {
                 className={`w-full grid gap-6 transition-all duration-1000 ease-in-out ${isDataExtracted ? "grid-cols-1 lg:grid-cols-2" : "grid-cols-1"}`}
                 style={
                   !isDataExtracted
-                    ? { maxWidth: "calc(40rem * 1.5)" }
+                    ? { maxWidth: "calc(40rem * 1.2)" }
                     : undefined
                 }
               >
@@ -832,6 +988,11 @@ export default function Home() {
                             fileIndex={index}
                             fileUrl={fileUrls[index]}
                             minRows={34}
+                            selectedPages={
+                              selectedPagesMap[
+                                `${file.name}_${file.size}_${file.lastModified}`
+                              ] || []
+                            }
                             totalFiles={selectedFiles.length}
                           />
                         </SwiperSlide>
@@ -842,7 +1003,7 @@ export default function Home() {
                     {selectedFiles.length > 1 && (
                       <div
                         aria-hidden="true"
-                        className="absolute bottom-0 left-1/2 transform -translate-x-1/2 flex items-center gap-2 text-default-500 bg-default-100/80 dark:bg-default-50/80 backdrop-blur-sm px-3 py-1 rounded-full mb-0"
+                        className="absolute bottom-0 left-1/2 transform -translate-x-1/2 flex items-center gap-2 text-default-500 bg-default-100/80 dark:bg-default-50/80 backdrop-blur-sm rounded-full"
                       >
                         <DocumentIcon size={16} />
                         <span className="text-sm font-medium">
@@ -874,35 +1035,83 @@ export default function Home() {
                     )}
 
                     <div className="flex gap-2 ml-auto">
+                      {!isDataExtracted && !currentHistoryId && selectedFiles[currentFileIndex]?.type ===
+                        "application/pdf" &&
+                        pdfPageCount > 1 && (
+                          <Button
+                            color="secondary"
+                            startContent={<DocumentIcon size={18} />}
+                            variant="flat"
+                            onPress={onPdfDrawerOpen}
+                          >
+                            Mark Pages
+                            {invoiceCount > 0 && (
+                              <span className="ml-2 text-xs text-primary font-semibold">
+                                {invoiceCount} invoice
+                                {invoiceCount !== 1 ? "s" : ""}
+                              </span>
+                            )}
+                          </Button>
+                        )}
                       {!isDataExtracted && (
                         <Button
                           color="success"
-                          disabled={isExtracting || activeJobCount > 0}
-                          isLoading={isExtracting}
+                          disabled={isExtracting || activeJobCount > 0 || isProcessingPdf}
+                          isLoading={isExtracting || isProcessingPdf}
                           startContent={
-                            !isExtracting ? (
+                            !isExtracting && !isProcessingPdf ? (
                               <SparklesIcon size={18} />
                             ) : undefined
                           }
                           variant="flat"
-                          onPress={() => {
-                            if (selectedFiles.length > 1) {
-                              // Multiple files: process in background
-                              processFiles(selectedFiles, true);
-                              handleClearImage();
-                            } else {
-                              // Single file: extract directly
-                              handleExtractData();
+                          onPress={async () => {
+                            setIsProcessingPdf(true);
+                            try {
+                              const processedFiles =
+                                await getProcessedFiles(selectedFiles);
+
+                              if (
+                                processedFiles.length > 1 ||
+                                (processedFiles.length === 1 &&
+                                  processedFiles[0] !== selectedFiles[0])
+                              ) {
+                                await startBatchJob(processedFiles);
+                                setLiveMessage(
+                                  `Started background processing of ${processedFiles.length} invoice${processedFiles.length !== 1 ? "s" : ""}.`,
+                                );
+                                setShowBatchNotification(true);
+                                if (batchNotificationTimeoutRef.current) {
+                                  clearTimeout(
+                                    batchNotificationTimeoutRef.current,
+                                  );
+                                }
+                                batchNotificationTimeoutRef.current = setTimeout(
+                                  () => {
+                                    setShowBatchNotification(false);
+                                    batchNotificationTimeoutRef.current = null;
+                                  },
+                                  5000,
+                                );
+                                handleClearImage();
+                              } else {
+                                // Single file, no splitting
+                                await handleExtractData();
+                              }
+                            } finally {
+                              setIsProcessingPdf(false);
                             }
                           }}
                         >
                           {isExtracting
                             ? "Extracting..."
+                            : isProcessingPdf
+                            ? "Processing..."
                             : `Extract${selectedFiles.length > 1 ? ` (${selectedFiles.length})` : ""}`}
                         </Button>
                       )}
                       <Button
                         color={currentHistoryId ? "default" : "danger"}
+                        isIconOnly={!currentHistoryId}
                         startContent={
                           currentHistoryId ? (
                             <BackIcon size={18} />
@@ -913,7 +1122,7 @@ export default function Home() {
                         variant="flat"
                         onPress={handleClearImage}
                       >
-                        {currentHistoryId ? "Back" : "Remove"}
+                        {currentHistoryId ? "Back" : null}
                       </Button>
                     </div>
                   </div>
@@ -996,11 +1205,7 @@ export default function Home() {
                         </Skeleton>
                       </div>
                     ) : extractedText ? (
-                      <CodeEditor
-                        language="json"
-                        minRows={34}
-                        value={extractedText}
-                      />
+                      <CodeEditor language="json" value={extractedText} />
                     ) : null}
                   </Card>
                 )}
@@ -1420,6 +1625,34 @@ export default function Home() {
           )}
         </ModalContent>
       </Modal>
+
+      {/* PDF Page Drawer */}
+      <PdfPageDrawer
+        file={selectedFiles[currentFileIndex]}
+        isOpen={isPdfDrawerOpen}
+        selectedPages={
+          selectedPagesMap[
+            `${selectedFiles[currentFileIndex]?.name}_${selectedFiles[currentFileIndex]?.size}_${selectedFiles[currentFileIndex]?.lastModified}`
+          ] || []
+        }
+        setSelectedPages={(pages: number[]) => {
+          const currentFile = selectedFiles[currentFileIndex];
+
+          if (currentFile) {
+            const id = `${currentFile.name}_${currentFile.size}_${currentFile.lastModified}`;
+
+            setSelectedPagesMap((prev) => ({ ...prev, [id]: pages }));
+            // persist to IndexedDB (fire-and-forget)
+            if (pages.length === 0) {
+              deleteSelectedPages(id).catch(() => {});
+            } else {
+              saveSelectedPages(id, pages).catch(() => {});
+            }
+          }
+        }}
+        onNumPages={setPdfPageCount}
+        onOpenChange={onPdfDrawerOpenChange}
+      />
     </>
   );
 }

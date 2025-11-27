@@ -21,7 +21,7 @@
     "build:win": "cross-env SHARP_IGNORE_GLOBAL_LIBVIPS=1 next build",
     "start": "next start",
     "lint": "eslint --fix",
-    "postinstall": "node -e \"const fs=require('fs');const dirs=['sharp-darwin-arm64','sharp-darwin-x64','sharp-libvips-darwin-arm64','sharp-libvips-darwin-x64','sharp-linux-arm64','sharp-linux-x64','sharp-libvips-linux-arm64','sharp-libvips-linux-x64'].map(d=>'node_modules/@img/'+d);dirs.forEach(d=>{try{fs.mkdirSync(d,{recursive:true});fs.writeFileSync(d+'/package.json','{}')}catch(e){}})\"",
+    "postinstall": "node -e \"const fs=require('fs');const dirs=['sharp-darwin-arm64','sharp-darwin-x64','sharp-libvips-darwin-arm64','sharp-libvips-darwin-x64','sharp-linux-arm64','sharp-linux-x64','sharp-libvips-linux-arm64','sharp-libvips-linux-x64'].map(d=>'node_modules/@img/'+d);dirs.forEach(d=>{try{fs.mkdirSync(d,{recursive:true});fs.writeFileSync(d+'/package.json','{}')}catch(e){}})\" && node ./scripts/copy-pdf-worker.js",
     "security:check": "node ./scripts/run-security-check.cjs",
     "security:audit": "npm audit",
     "security:fix": "npm audit fix",
@@ -37,6 +37,7 @@
     "@heroui/badge": "^2.2.17",
     "@heroui/button": "2.2.27",
     "@heroui/card": "^2.2.25",
+    "@heroui/checkbox": "^2.3.27",
     "@heroui/drawer": "^2.2.24",
     "@heroui/dropdown": "^2.3.27",
     "@heroui/image": "2.2.17",
@@ -61,8 +62,10 @@
     "next": "^15.5.6",
     "next-themes": "0.4.6",
     "openai": "^6.6.0",
+    "pdf-lib": "^1.17.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-pdf": "^10.2.0",
     "swiper": "^12.0.3"
   },
   "devDependencies": {
@@ -79,7 +82,7 @@
     "archiver": "^7.0.0",
     "concurrently": "^9.2.1",
     "cross-env": "^10.1.0",
-    "electron": "^38.4.0",
+    "electron": "^38.7.1",
     "electron-builder": "^26.0.12",
     "eslint": "^9.38.0",
     "eslint-config-next": "15.3.4",
@@ -107,6 +110,7 @@
     }
   },
   "optionalDependencies": {
+    "@next/swc-darwin-arm64": "^16.0.3",
     "sharp": "^0.34.4"
   }
 }

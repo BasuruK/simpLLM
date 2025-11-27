@@ -5,7 +5,8 @@
 
 const DB_NAME = "simpllm_files";
 const STORE_NAME = "files";
-const DB_VERSION = 1;
+const SELECTIONS_STORE = "selections";
+const DB_VERSION = 2;
 
 /**
  * Open IndexedDB connection
@@ -29,7 +30,134 @@ function openDB(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains(STORE_NAME)) {
         db.createObjectStore(STORE_NAME);
       }
+
+      // Create a separate store for persisting selected PDF pages per file
+      if (!db.objectStoreNames.contains(SELECTIONS_STORE)) {
+        db.createObjectStore(SELECTIONS_STORE);
+      }
     };
+  });
+}
+
+/**
+ * Save selected pages (array of page numbers) for a given file id
+ */
+export async function saveSelectedPages(
+  id: string,
+  pages: number[],
+): Promise<void> {
+  const db = await openDB();
+
+  return new Promise((resolve, reject) => {
+    try {
+      const transaction = db.transaction([SELECTIONS_STORE], "readwrite");
+      const store = transaction.objectStore(SELECTIONS_STORE);
+
+      transaction.oncomplete = () => {
+        db.close();
+        resolve();
+      };
+
+      transaction.onerror = () => {
+        db.close();
+        reject(transaction.error || new Error("Transaction failed"));
+      };
+
+      transaction.onabort = () => {
+        db.close();
+        reject(new Error("Transaction aborted"));
+      };
+
+      const request = store.put(pages, id);
+
+      request.onerror = () => {
+        reject(request.error || new Error("Put request failed"));
+      };
+    } catch (error) {
+      db.close();
+      reject(error);
+    }
+  });
+}
+
+/**
+ * Get selected pages (array of page numbers) for a given file id
+ */
+export async function getSelectedPages(id: string): Promise<number[] | null> {
+  const db = await openDB();
+
+  return new Promise((resolve, reject) => {
+    try {
+      const transaction = db.transaction([SELECTIONS_STORE], "readonly");
+      const store = transaction.objectStore(SELECTIONS_STORE);
+      let result: number[] | null = null;
+
+      transaction.oncomplete = () => {
+        db.close();
+        resolve(result);
+      };
+
+      transaction.onerror = () => {
+        db.close();
+        reject(transaction.error || new Error("Transaction failed"));
+      };
+
+      transaction.onabort = () => {
+        db.close();
+        reject(new Error("Transaction aborted"));
+      };
+
+      const request = store.get(id);
+
+      request.onsuccess = () => {
+        result = request.result || null;
+      };
+
+      request.onerror = () => {
+        reject(request.error || new Error("Get request failed"));
+      };
+    } catch (error) {
+      db.close();
+      reject(error);
+    }
+  });
+}
+
+/**
+ * Delete selected pages entry for a given file id
+ */
+export async function deleteSelectedPages(id: string): Promise<void> {
+  const db = await openDB();
+
+  return new Promise((resolve, reject) => {
+    try {
+      const transaction = db.transaction([SELECTIONS_STORE], "readwrite");
+      const store = transaction.objectStore(SELECTIONS_STORE);
+
+      transaction.oncomplete = () => {
+        db.close();
+        resolve();
+      };
+
+      transaction.onerror = () => {
+        db.close();
+        reject(transaction.error || new Error("Transaction failed"));
+      };
+
+      transaction.onabort = () => {
+        db.close();
+        reject(new Error("Transaction aborted"));
+      };
+
+      const request = store.delete(id);
+
+      request.onerror = () => {
+        reject(request.error || new Error("Delete request failed"));
+      };
+    } catch (error) {
+      db.close();
+      reject(error);
+    }
   });
 }
 

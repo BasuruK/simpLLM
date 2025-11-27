@@ -94,6 +94,7 @@ export class IndexedDBNotificationStorage implements NotificationStorageClient {
         const notifications: Notification[] = rawNotifications.map((item) => {
           // Migration: convert old failedFiles to fileFailures format
           let fileFailures = item.fileFailures || [];
+
           if (!fileFailures.length && item.failedFiles?.length) {
             fileFailures = item.failedFiles.map((fileName) => ({
               fileName,
