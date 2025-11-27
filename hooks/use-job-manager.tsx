@@ -11,26 +11,32 @@ import { saveFileBlob, generateThumbnail } from "@/lib/file-storage";
  * Remove Markdown code fences (```json ... ```), keeping the inner payload.
  */
 const stripMarkdownCodeFence = (input: string): string => {
-  const trimmed = input.trim();
+  try {
+    const trimmed = input.trim();
 
-  if (!trimmed.startsWith("```")) return input;
+    if (!trimmed.startsWith("```")) return input;
 
-  const firstNewLine = trimmed.indexOf("\n");
+    const firstNewLine = trimmed.indexOf("\n");
 
-  if (firstNewLine === -1) return input;
+    if (firstNewLine === -1) return input;
 
-  const openingLine = trimmed.slice(0, firstNewLine).trim();
+    const openingLine = trimmed.slice(0, firstNewLine).trim();
 
-  if (!openingLine.startsWith("```")) return input;
+    if (!openingLine.startsWith("```")) return input;
 
-  let inner = trimmed.slice(firstNewLine + 1);
-  const closingFenceIndex = inner.lastIndexOf("```");
+    let inner = trimmed.slice(firstNewLine + 1);
+    const closingFenceIndex = inner.lastIndexOf("```");
 
-  if (closingFenceIndex === -1) return input;
+    if (closingFenceIndex === -1) return input;
 
-  inner = inner.slice(0, closingFenceIndex);
+    inner = inner.slice(0, closingFenceIndex);
 
-  return inner.trim();
+    return inner.trim();
+  } catch (error) {
+    // If anything goes wrong with string manipulation, return the original input
+    console.warn("Error in stripMarkdownCodeFence:", error);
+    return input;
+  }
 };
 
 /**
@@ -43,39 +49,52 @@ function normalizeExtractedData(
   data: unknown,
   context?: { jobId: string; fileName: string },
 ): { text: string; parsed: unknown } | null {
-  if (!data) return null;
-
-  // Unwrap "text" wrapper if present
-  let cleaned: unknown = data;
-
-  if (typeof data === "object" && data !== null && "text" in data) {
-    cleaned = (data as Record<string, unknown>).text;
-  }
-
-  // Convert to string
-  const textRaw =
-    typeof cleaned === "string" ? cleaned : JSON.stringify(cleaned, null, 2);
-  const text = stripMarkdownCodeFence(textRaw);
-
-  // Parse JSON with error logging
-  let parsed: unknown;
-
   try {
-    parsed = typeof text === "string" ? JSON.parse(text) : text;
-  } catch (err) {
+    if (!data) return null;
+
+    // Unwrap "text" wrapper if present
+    let cleaned: unknown = data;
+
+    if (typeof data === "object" && data !== null && "text" in data) {
+      cleaned = (data as Record<string, unknown>).text;
+    }
+
+    // Convert to string
+    const textRaw =
+      typeof cleaned === "string" ? cleaned : JSON.stringify(cleaned, null, 2);
+    const text = stripMarkdownCodeFence(textRaw);
+
+    // Parse JSON with error logging
+    let parsed: unknown;
+
+    try {
+      parsed = typeof text === "string" ? JSON.parse(text) : text;
+    } catch (err) {
+      if (context) {
+        // eslint-disable-next-line no-console
+        console.error(
+          `JSON parse error for job ${context.jobId}, file ${context.fileName}:`,
+          err,
+          "\nRaw data:",
+          text?.substring(0, 500),
+        );
+      }
+      parsed = null;
+    }
+
+    return { text, parsed };
+  } catch (error) {
     if (context) {
       // eslint-disable-next-line no-console
       console.error(
-        `JSON parse error for job ${context.jobId}, file ${context.fileName}:`,
-        err,
+        `Unexpected error in normalizeExtractedData for job ${context.jobId}, file ${context.fileName}:`,
+        error,
         "\nRaw data:",
-        text?.substring(0, 500),
+        data,
       );
     }
-    parsed = null;
+    return null;
   }
-
-  return { text, parsed };
 }
 
 const cancellationPatterns = [

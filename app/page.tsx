@@ -113,6 +113,7 @@ export default function Home() {
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [pdfPageCount, setPdfPageCount] = useState<number>(0);
+  const [isProcessingPdf, setIsProcessingPdf] = useState(false);
 
   // Reset pdfPageCount to 0 whenever the current file changes
   useEffect(() => {
@@ -645,7 +646,7 @@ export default function Home() {
   // Close PDF drawer when switching files to ensure clean state
   useEffect(() => {
     onPdfDrawerClose();
-  }, [currentFileIndex]);
+  }, [currentFileIndex, onPdfDrawerClose]);
 
   const handleExtractData = useCallback(async () => {
     // Validate bounds before accessing array
@@ -1055,49 +1056,56 @@ export default function Home() {
                       {!isDataExtracted && (
                         <Button
                           color="success"
-                          disabled={isExtracting || activeJobCount > 0}
-                          isLoading={isExtracting}
+                          disabled={isExtracting || activeJobCount > 0 || isProcessingPdf}
+                          isLoading={isExtracting || isProcessingPdf}
                           startContent={
-                            !isExtracting ? (
+                            !isExtracting && !isProcessingPdf ? (
                               <SparklesIcon size={18} />
                             ) : undefined
                           }
                           variant="flat"
                           onPress={async () => {
-                            const processedFiles =
-                              await getProcessedFiles(selectedFiles);
+                            setIsProcessingPdf(true);
+                            try {
+                              const processedFiles =
+                                await getProcessedFiles(selectedFiles);
 
-                            if (
-                              processedFiles.length > 1 ||
-                              (processedFiles.length === 1 &&
-                                processedFiles[0] !== selectedFiles[0])
-                            ) {
-                              await startBatchJob(processedFiles);
-                              setLiveMessage(
-                                `Started background processing of ${processedFiles.length} invoice${processedFiles.length !== 1 ? "s" : ""}.`,
-                              );
-                              setShowBatchNotification(true);
-                              if (batchNotificationTimeoutRef.current) {
-                                clearTimeout(
-                                  batchNotificationTimeoutRef.current,
+                              if (
+                                processedFiles.length > 1 ||
+                                (processedFiles.length === 1 &&
+                                  processedFiles[0] !== selectedFiles[0])
+                              ) {
+                                await startBatchJob(processedFiles);
+                                setLiveMessage(
+                                  `Started background processing of ${processedFiles.length} invoice${processedFiles.length !== 1 ? "s" : ""}.`,
                                 );
+                                setShowBatchNotification(true);
+                                if (batchNotificationTimeoutRef.current) {
+                                  clearTimeout(
+                                    batchNotificationTimeoutRef.current,
+                                  );
+                                }
+                                batchNotificationTimeoutRef.current = setTimeout(
+                                  () => {
+                                    setShowBatchNotification(false);
+                                    batchNotificationTimeoutRef.current = null;
+                                  },
+                                  5000,
+                                );
+                                handleClearImage();
+                              } else {
+                                // Single file, no splitting
+                                await handleExtractData();
                               }
-                              batchNotificationTimeoutRef.current = setTimeout(
-                                () => {
-                                  setShowBatchNotification(false);
-                                  batchNotificationTimeoutRef.current = null;
-                                },
-                                5000,
-                              );
-                              handleClearImage();
-                            } else {
-                              // Single file, no splitting
-                              await handleExtractData();
+                            } finally {
+                              setIsProcessingPdf(false);
                             }
                           }}
                         >
                           {isExtracting
                             ? "Extracting..."
+                            : isProcessingPdf
+                            ? "Processing..."
                             : `Extract${selectedFiles.length > 1 ? ` (${selectedFiles.length})` : ""}`}
                         </Button>
                       )}
