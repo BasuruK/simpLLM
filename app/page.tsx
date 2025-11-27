@@ -29,6 +29,7 @@ import {
   ModalFooter,
   useDisclosure,
 } from "@heroui/modal";
+import { PDFDocument } from "pdf-lib";
 
 import { extractDataFromFile, ExtractionUsage } from "@/lib/openai";
 import {
@@ -80,7 +81,6 @@ import {
 } from "@/lib/file-storage";
 import { useJobManager } from "@/hooks/use-job-manager";
 import { HistoryItem } from "@/types";
-import { PDFDocument } from "pdf-lib";
 
 const PdfPageDrawer = dynamic(
   () => import("@/components/pdf-page-drawer").then((mod) => mod.PdfPageDrawer),
@@ -127,6 +127,7 @@ export default function Home() {
     if (selected.length === 0) return 0;
     let count = 0;
     let currentGroup: number[] = [];
+
     for (let i = 1; i <= pdfPageCount; i++) {
       if (selected.includes(i)) {
         if (currentGroup.length > 0) {
@@ -140,6 +141,7 @@ export default function Home() {
     if (currentGroup.length > 0) {
       count++;
     }
+
     return count;
   }, [selectedPagesMap, pdfPageCount, selectedFiles, currentFileIndex]);
   const hasReceivedDataRef = useRef(false);
@@ -225,8 +227,10 @@ export default function Home() {
         await Promise.all(
           validFiles.map(async (file) => {
             const id = `${file.name}_${file.size}_${file.lastModified}`;
+
             try {
               const pages = await getSelectedPages(id);
+
               if (pages && Array.isArray(pages) && pages.length > 0) {
                 entries[id] = pages;
               }
@@ -612,6 +616,7 @@ export default function Home() {
     fileUrlsRef.current?.forEach((url) => URL.revokeObjectURL(url));
     fileUrlsRef.current = [];
     const filesToClear = selectedFiles.slice();
+
     setSelectedFiles([]);
     setFileUrls([]);
     setCurrentFileIndex(0);
@@ -627,6 +632,7 @@ export default function Home() {
     if (filesToClear && filesToClear.length > 0) {
       filesToClear.forEach((file) => {
         const id = `${file.name}_${file.size}_${file.lastModified}`;
+
         deleteSelectedPages(id).catch(() => {});
       });
     }
@@ -724,10 +730,12 @@ export default function Home() {
 
   const getProcessedFiles = async (files: File[]): Promise<File[]> => {
     const processed: File[] = [];
+
     for (const file of files) {
       if (file.type === "application/pdf") {
         const id = `${file.name}_${file.size}_${file.lastModified}`;
         const selected = selectedPagesMap[id] || [];
+
         if (selected.length > 0) {
           // split the PDF
           const arrayBuffer = await file.arrayBuffer();
@@ -735,6 +743,7 @@ export default function Home() {
           const numPages = pdfDoc.getPageCount();
           const groups: number[][] = [];
           let currentGroup: number[] = [];
+
           for (let i = 1; i <= numPages; i++) {
             if (selected.includes(i)) {
               if (currentGroup.length > 0) {
@@ -754,13 +763,23 @@ export default function Home() {
               pdfDoc,
               group.map((p) => p - 1),
             );
+
             copiedPages.forEach((page) => newPdf.addPage(page));
             const pdfBytes = await newPdf.save();
-            const pdfBlob = new Blob([new Uint8Array(pdfBytes)], { type: "application/pdf" });
-            const nameSuffix = group.length === 1 ? `_page${group[0]}` : `_pages${group.join("-")}`;
+            const pdfBlob = new Blob([new Uint8Array(pdfBytes)], {
+              type: "application/pdf",
+            });
+            const nameSuffix =
+              group.length === 1
+                ? `_page${group[0]}`
+                : `_pages${group.join("-")}`;
 
             processed.push(
-              new File([pdfBlob], `${file.name.replace(/\.pdf$/, "")}${nameSuffix}.pdf`, { type: "application/pdf" }),
+              new File(
+                [pdfBlob],
+                `${file.name.replace(/\.pdf$/, "")}${nameSuffix}.pdf`,
+                { type: "application/pdf" },
+              ),
             );
           }
         } else {
@@ -770,6 +789,7 @@ export default function Home() {
         processed.push(file);
       }
     }
+
     return processed;
   };
 
@@ -967,8 +987,12 @@ export default function Home() {
                             fileIndex={index}
                             fileUrl={fileUrls[index]}
                             minRows={34}
+                            selectedPages={
+                              selectedPagesMap[
+                                `${file.name}_${file.size}_${file.lastModified}`
+                              ] || []
+                            }
                             totalFiles={selectedFiles.length}
-                            selectedPages={selectedPagesMap[`${file.name}_${file.size}_${file.lastModified}`] || []}
                           />
                         </SwiperSlide>
                       ))}
@@ -1022,7 +1046,8 @@ export default function Home() {
                             Mark Pages
                             {invoiceCount > 0 && (
                               <span className="ml-2 text-xs text-primary font-semibold">
-                                {invoiceCount} invoice{invoiceCount !== 1 ? 's' : ''}
+                                {invoiceCount} invoice
+                                {invoiceCount !== 1 ? "s" : ""}
                               </span>
                             )}
                           </Button>
@@ -1039,20 +1064,31 @@ export default function Home() {
                           }
                           variant="flat"
                           onPress={async () => {
-                            const processedFiles = await getProcessedFiles(selectedFiles);
-                            if (processedFiles.length > 1 || (processedFiles.length === 1 && processedFiles[0] !== selectedFiles[0])) {
+                            const processedFiles =
+                              await getProcessedFiles(selectedFiles);
+
+                            if (
+                              processedFiles.length > 1 ||
+                              (processedFiles.length === 1 &&
+                                processedFiles[0] !== selectedFiles[0])
+                            ) {
                               await startBatchJob(processedFiles);
                               setLiveMessage(
-                                `Started background processing of ${processedFiles.length} invoice${processedFiles.length !== 1 ? 's' : ''}.`,
+                                `Started background processing of ${processedFiles.length} invoice${processedFiles.length !== 1 ? "s" : ""}.`,
                               );
                               setShowBatchNotification(true);
                               if (batchNotificationTimeoutRef.current) {
-                                clearTimeout(batchNotificationTimeoutRef.current);
+                                clearTimeout(
+                                  batchNotificationTimeoutRef.current,
+                                );
                               }
-                              batchNotificationTimeoutRef.current = setTimeout(() => {
-                                setShowBatchNotification(false);
-                                batchNotificationTimeoutRef.current = null;
-                              }, 5000);
+                              batchNotificationTimeoutRef.current = setTimeout(
+                                () => {
+                                  setShowBatchNotification(false);
+                                  batchNotificationTimeoutRef.current = null;
+                                },
+                                5000,
+                              );
                               handleClearImage();
                             } else {
                               // Single file, no splitting
@@ -1593,8 +1629,10 @@ export default function Home() {
         }
         setSelectedPages={(pages: number[]) => {
           const currentFile = selectedFiles[currentFileIndex];
+
           if (currentFile) {
             const id = `${currentFile.name}_${currentFile.size}_${currentFile.lastModified}`;
+
             setSelectedPagesMap((prev) => ({ ...prev, [id]: pages }));
             // persist to IndexedDB (fire-and-forget)
             if (pages.length === 0) {
@@ -1604,8 +1642,8 @@ export default function Home() {
             }
           }
         }}
-        onOpenChange={onPdfDrawerOpenChange}
         onNumPages={setPdfPageCount}
+        onOpenChange={onPdfDrawerOpenChange}
       />
     </>
   );
