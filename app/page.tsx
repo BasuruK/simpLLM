@@ -118,14 +118,17 @@ export default function Home() {
   useEffect(() => {
     setPdfPageCount(0);
   }, [selectedFiles, currentFileIndex]);
-  const [selectedPdfPages, setSelectedPdfPages] = useState<number[]>([]);
   const [selectedPagesMap, setSelectedPagesMap] = useState<Record<string, number[]>>({});
   const invoiceCount = useMemo(() => {
-    if (selectedPdfPages.length === 0) return 0;
+    const currentFile = selectedFiles[currentFileIndex];
+    if (!currentFile) return 0;
+    const id = `${currentFile.name}_${currentFile.size}_${currentFile.lastModified}`;
+    const selected = selectedPagesMap[id] || [];
+    if (selected.length === 0) return 0;
     let count = 0;
     let currentGroup: number[] = [];
     for (let i = 1; i <= pdfPageCount; i++) {
-      if (selectedPdfPages.includes(i)) {
+      if (selected.includes(i)) {
         if (currentGroup.length > 0) {
           count++;
         }
@@ -138,7 +141,7 @@ export default function Home() {
       count++;
     }
     return count;
-  }, [selectedPdfPages, pdfPageCount]);
+  }, [selectedPagesMap, pdfPageCount, selectedFiles, currentFileIndex]);
   const hasReceivedDataRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const saveSuccessTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -234,10 +237,6 @@ export default function Home() {
         );
 
         setSelectedPagesMap(entries);
-        const firstId = validFiles.length > 0 ? `${validFiles[0].name}_${validFiles[0].size}_${validFiles[0].lastModified}` : null;
-        if (firstId) {
-          setSelectedPdfPages(entries[firstId] || []);
-        }
       } catch {
         // ignore
       }
@@ -636,50 +635,6 @@ export default function Home() {
     }
   };
 
-  // Persist selected pages to IndexedDB for the current file whenever they change
-  useEffect(() => {
-    const currentFile = selectedFiles[currentFileIndex];
-
-    if (!currentFile) return;
-
-    const id = `${currentFile.name}_${currentFile.size}_${currentFile.lastModified}`;
-
-    // If there are no selected pages, remove any persisted entry
-    if (!selectedPdfPages || selectedPdfPages.length === 0) {
-      deleteSelectedPages(id).catch(() => {});
-      return;
-    }
-
-    saveSelectedPages(id, selectedPdfPages).catch(() => {});
-  }, [selectedPdfPages, selectedFiles, currentFileIndex]);
-
-  // Load persisted selected pages when the current file changes
-  useEffect(() => {
-    const loadSelections = async () => {
-      const currentFile = selectedFiles[currentFileIndex];
-
-      if (!currentFile) {
-        setSelectedPdfPages([]);
-        return;
-      }
-
-      const id = `${currentFile.name}_${currentFile.size}_${currentFile.lastModified}`;
-
-      try {
-        const pages = await getSelectedPages(id);
-
-        if (pages && Array.isArray(pages)) {
-          setSelectedPdfPages(pages);
-        } else {
-          setSelectedPdfPages([]);
-        }
-      } catch {
-        setSelectedPdfPages([]);
-      }
-    };
-
-    loadSelections();
-  }, [selectedFiles, currentFileIndex]);
 
   // Close PDF drawer when switching files to ensure clean state
   useEffect(() => {
@@ -1631,16 +1586,22 @@ export default function Home() {
       <PdfPageDrawer
         file={selectedFiles[currentFileIndex]}
         isOpen={isPdfDrawerOpen}
-        selectedPages={selectedPdfPages}
+        selectedPages={
+          selectedPagesMap[
+            `${selectedFiles[currentFileIndex]?.name}_${selectedFiles[currentFileIndex]?.size}_${selectedFiles[currentFileIndex]?.lastModified}`
+          ] || []
+        }
         setSelectedPages={(pages: number[]) => {
-          setSelectedPdfPages(pages);
-          // persist in-memory map too
           const currentFile = selectedFiles[currentFileIndex];
           if (currentFile) {
             const id = `${currentFile.name}_${currentFile.size}_${currentFile.lastModified}`;
             setSelectedPagesMap((prev) => ({ ...prev, [id]: pages }));
             // persist to IndexedDB (fire-and-forget)
-            saveSelectedPages(id, pages).catch(() => {});
+            if (pages.length === 0) {
+              deleteSelectedPages(id).catch(() => {});
+            } else {
+              saveSelectedPages(id, pages).catch(() => {});
+            }
           }
         }}
         onOpenChange={onPdfDrawerOpenChange}
