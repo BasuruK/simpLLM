@@ -57,32 +57,45 @@ export function Snow({
     const total = Math.ceil(particleCount * 1.1);
     const cssWidth = Math.max(1, window.innerWidth);
     const cssHeight = Math.max(1, window.innerHeight);
+
     for (let i = 0; i < total; i++) {
       const layer = Math.random() < 0.7 ? "background" : "foreground";
+
       particles.push({
         x: Math.random() * cssWidth,
         y: Math.random() * cssHeight,
         vx: (Math.random() - 0.5) * 0.5,
         vy: Math.random() * 1 + 0.5,
-        size: layer === "foreground" ? Math.random() * 1.5 + 0.8 : Math.random() * 0.9 + 0.4,
+        size:
+          layer === "foreground"
+            ? Math.random() * 1.5 + 0.8
+            : Math.random() * 0.9 + 0.4,
         opacity: Math.random() * 0.8 + 0.2,
         layer,
         windOffset: Math.random() * Math.PI * 2,
       });
     }
+
     return particles;
   };
 
   const updateWind = () => {
     const time = Date.now() * 0.001;
+
     windRef.current.time = time;
     let baseX = Math.sin(time * 0.3) * 0.3 + Math.sin(time * 0.7) * 0.2;
     let baseY = Math.cos(time * 0.2) * 0.1;
+
     if (gustRef.current.active) {
       const elapsed = (Date.now() - gustRef.current.startedAt) / 1000;
-      const t = Math.min(1, elapsed / Math.max(0.001, gustRef.current.duration));
+      const t = Math.min(
+        1,
+        elapsed / Math.max(0.001, gustRef.current.duration),
+      );
       const envelope = Math.sin(t * Math.PI);
-      const gustEffect = gustRef.current.strength * envelope * gustRef.current.direction;
+      const gustEffect =
+        gustRef.current.strength * envelope * gustRef.current.direction;
+
       baseX += gustEffect;
       baseY += gustEffect * 0.2;
       if (t >= 1) {
@@ -100,13 +113,18 @@ export function Snow({
       gustTimeoutRef.current = null;
     }
     const delay = 5000 + Math.random() * 15000;
+
     gustTimeoutRef.current = window.setTimeout(() => {
       const isExtreme = Math.random() < 0.12;
+
       triggerGust(undefined, isExtreme ? "extreme" : "normal");
     }, delay);
   };
 
-  const triggerGust = (strengthOverride?: number, mode: "normal" | "extreme" = "normal") => {
+  const triggerGust = (
+    strengthOverride?: number,
+    mode: "normal" | "extreme" = "normal",
+  ) => {
     gustRef.current.active = true;
     gustRef.current.mode = mode;
     if (mode === "extreme") {
@@ -120,11 +138,22 @@ export function Snow({
     gustRef.current.startedAt = Date.now();
   };
 
-  const updateParticles = (particles: SnowParticle[], canvas: HTMLCanvasElement) => {
+  const updateParticles = (
+    particles: SnowParticle[],
+    canvas: HTMLCanvasElement,
+  ) => {
     particles.forEach((particle) => {
-      const windInfluence = Math.sin(windRef.current.time + particle.windOffset) * 0.5 + 0.5;
-      const windX = windRef.current.x * windInfluence * (particle.layer === "foreground" ? 1.2 : 0.8);
-      const windY = windRef.current.y * windInfluence * (particle.layer === "foreground" ? 1.1 : 0.9);
+      const windInfluence =
+        Math.sin(windRef.current.time + particle.windOffset) * 0.5 + 0.5;
+      const windX =
+        windRef.current.x *
+        windInfluence *
+        (particle.layer === "foreground" ? 1.2 : 0.8);
+      const windY =
+        windRef.current.y *
+        windInfluence *
+        (particle.layer === "foreground" ? 1.1 : 0.9);
+
       if (gustRef.current.active && gustRef.current.mode === "extreme") {
         particle.vx += windX * 0.08 + (Math.random() - 0.5) * 0.4;
         particle.vy += windY * 0.02 + Math.random() * 0.4;
@@ -146,14 +175,23 @@ export function Snow({
     });
   };
 
-  const renderToContext = (particles: SnowParticle[], canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) => {
+  const renderToContext = (
+    particles: SnowParticle[],
+    canvas: HTMLCanvasElement,
+    ctx: CanvasRenderingContext2D,
+  ) => {
     const dpr = Math.max(1, window.devicePixelRatio || 1);
     const cssWidth = canvas.width / dpr;
     const cssHeight = canvas.height / dpr;
+
     ctx.clearRect(0, 0, cssWidth, cssHeight);
     particles.forEach((particle) => {
       ctx.save();
-      const alpha = particle.layer === "foreground" ? particle.opacity : particle.opacity * 0.6;
+      const alpha =
+        particle.layer === "foreground"
+          ? particle.opacity
+          : particle.opacity * 0.6;
+
       ctx.globalAlpha = alpha;
       ctx.fillStyle = "#ffffff";
       ctx.shadowColor = "#ffffff";
@@ -177,11 +215,17 @@ export function Snow({
     const fgCanvas = fgCanvasRef.current;
     const bgCtx = bgCanvas?.getContext("2d");
     const fgCtx = fgCanvas?.getContext("2d");
+
     if (!bgCanvas || !fgCanvas || !bgCtx || !fgCtx) return;
     updateWind();
     updateParticles(particlesRef.current, bgCanvas);
-    const bgParticles = particlesRef.current.filter((p) => p.layer === "background");
-    const fgParticles = particlesRef.current.filter((p) => p.layer === "foreground");
+    const bgParticles = particlesRef.current.filter(
+      (p) => p.layer === "background",
+    );
+    const fgParticles = particlesRef.current.filter(
+      (p) => p.layer === "foreground",
+    );
+
     renderToContext(bgParticles, bgCanvas, bgCtx);
     renderToContext(fgParticles, fgCanvas, fgCtx);
     animationRef.current = requestAnimationFrame(animate);
@@ -190,16 +234,19 @@ export function Snow({
   const handleResize = () => {
     const bgCanvas = bgCanvasRef.current;
     const fgCanvas = fgCanvasRef.current;
+
     if (!bgCanvas || !fgCanvas) return;
     const dpr = Math.max(1, window.devicePixelRatio || 1);
     const cssWidth = Math.max(1, window.innerWidth);
     const cssHeight = Math.max(1, window.innerHeight);
+
     [bgCanvas, fgCanvas].forEach((canvas) => {
       canvas.style.width = `${cssWidth}px`;
       canvas.style.height = `${cssHeight}px`;
       canvas.width = Math.floor(cssWidth * dpr);
       canvas.height = Math.floor(cssHeight * dpr);
       const ctx = canvas.getContext("2d");
+
       if (ctx) ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     });
     particlesRef.current = initializeParticles();
@@ -208,12 +255,14 @@ export function Snow({
   useEffect(() => {
     const bgCanvas = bgCanvasRef.current;
     const fgCanvas = fgCanvasRef.current;
+
     if (!bgCanvas || !fgCanvas) return;
     handleResize();
     particlesRef.current = initializeParticles();
     animate();
     window.addEventListener("resize", handleResize);
     scheduleNextGust();
+
     return () => {
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
       window.removeEventListener("resize", handleResize);
@@ -226,17 +275,39 @@ export function Snow({
 
   return (
     <>
-      <canvas ref={bgCanvasRef} className={`fixed inset-0 pointer-events-none z-0 ${className}`} style={{ background: "transparent", width: "100vw", height: "100vh", position: "fixed", top: 0, left: 0 }} />
-      <canvas ref={fgCanvasRef} className={`fixed inset-0 pointer-events-none z-20`} style={{ background: "transparent", width: "100vw", height: "100vh", position: "fixed", top: 0, left: 0 }} />
+      <canvas
+        ref={bgCanvasRef}
+        className={`fixed inset-0 pointer-events-none z-0 ${className}`}
+        style={{
+          background: "transparent",
+          width: "100vw",
+          height: "100vh",
+          position: "fixed",
+          top: 0,
+          left: 0,
+        }}
+      />
+      <canvas
+        ref={fgCanvasRef}
+        className={`fixed inset-0 pointer-events-none z-20`}
+        style={{
+          background: "transparent",
+          width: "100vw",
+          height: "100vh",
+          position: "fixed",
+          top: 0,
+          left: 0,
+        }}
+      />
       {sleighEnabled ? (
         <SantaSleigh
-          enabled={sleighEnabled}
-          minDelay={sleighDemo ? 800 : sleighMinDelay}
-          maxDelay={sleighDemo ? 1600 : sleighMaxDelay}
-          size={sleighDemo ? Math.max(300, sleighSize) : sleighSize}
-          demo={sleighDemo}
-          arcMin={sleighDemo ? Math.max(40, sleighArcMin) : sleighArcMin}
           arcMax={sleighDemo ? Math.min(180, sleighArcMax) : sleighArcMax}
+          arcMin={sleighDemo ? Math.max(40, sleighArcMin) : sleighArcMin}
+          demo={sleighDemo}
+          enabled={sleighEnabled}
+          maxDelay={sleighDemo ? 1600 : sleighMaxDelay}
+          minDelay={sleighDemo ? 800 : sleighMinDelay}
+          size={sleighDemo ? Math.max(300, sleighSize) : sleighSize}
         />
       ) : null}
     </>
@@ -260,7 +331,7 @@ export function SantaSleigh({
   size = 200,
   arcMin = 80,
   arcMax = 220,
-  demo = false
+  demo = false,
 }: SantaProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const animRef = useRef<LottieRefCurrentProps | null>(null);
@@ -270,6 +341,7 @@ export function SantaSleigh({
 
   useEffect(() => {
     const el = containerRef.current;
+
     if (!el) return;
     el.style.position = "fixed";
     el.style.pointerEvents = "none";
@@ -278,13 +350,16 @@ export function SantaSleigh({
     el.style.zIndex = "40";
 
     const candidates = ["sleigh_ride.json"];
+
     (async () => {
       for (const name of candidates) {
         try {
           const path = "/lottie/" + encodeURIComponent(name);
           const res = await fetch(path);
+
           if (!res.ok) continue;
           const j = await res.json();
+
           setAnimationData(j);
           break;
         } catch {
@@ -298,15 +373,18 @@ export function SantaSleigh({
         try {
           animRef.current.goToAndPlay(0, true);
         } catch {}
+
         return true;
       }
       if (attempts <= 0) return false;
       setTimeout(() => attemptPlay(attempts - 1, delay), delay);
+
       return false;
     };
 
     const scheduleNextFlight = () => {
       const delay = minDelay + Math.random() * (maxDelay - minDelay);
+
       flightTimeoutRef.current = window.setTimeout(() => {
         flyOnce();
         scheduleNextFlight();
@@ -326,6 +404,7 @@ export function SantaSleigh({
       const midX = Math.round(vw / 2);
       const arcHeight = arcMin + Math.random() * (arcMax - arcMin);
       const midY = Math.round(vh * 0.5) - arcHeight;
+
       el.style.left = `${sx}px`;
       el.style.top = `${sy}px`;
       isFlyingRef.current = true;
@@ -337,9 +416,11 @@ export function SantaSleigh({
         const t = Math.min(1, (now - startTime) / duration);
         const ix = (1 - t) * (1 - t) * sx + 2 * (1 - t) * t * midX + t * t * ex;
         const iy = (1 - t) * (1 - t) * sy + 2 * (1 - t) * t * midY + t * t * ey;
+
         el.style.left = `${Math.round(ix)}px`;
         el.style.top = `${Math.round(iy)}px`;
         const angle = (Math.atan2(ey - sy, ex - sx) * 180) / Math.PI;
+
         el.style.transform = `translateZ(0) rotate(${angle * 0.6}deg)`;
         if (t < 1) requestAnimationFrame(step);
         else {
@@ -350,6 +431,7 @@ export function SantaSleigh({
           el.style.transform = "translateZ(0)";
         }
       };
+
       requestAnimationFrame(step);
     };
 
@@ -374,7 +456,13 @@ export function SantaSleigh({
   return (
     <div ref={containerRef} aria-hidden="true">
       {animationData ? (
-        <Lottie animationData={animationData} autoplay={false} loop={false} lottieRef={animRef} style={{ width: "100%", height: "100%" }} />
+        <Lottie
+          animationData={animationData}
+          autoplay={true}
+          loop={true}
+          lottieRef={animRef}
+          style={{ width: "100%", height: "100%" }}
+        />
       ) : null}
     </div>
   );
