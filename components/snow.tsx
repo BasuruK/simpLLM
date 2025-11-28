@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { motion } from "motion/react";
 import Lottie, { LottieRefCurrentProps } from "lottie-react";
 
 interface SnowParticle {
@@ -324,31 +325,16 @@ interface SantaProps {
   demo?: boolean;
 }
 
-export function SantaSleigh({
-  enabled = true,
-  minDelay = 8000,
-  maxDelay = 38000,
-  size = 200,
-  arcMin = 80,
-  arcMax = 220,
-  demo = false,
-}: SantaProps) {
-  const containerRef = useRef<HTMLDivElement | null>(null);
+export function SantaSleigh({ enabled = true, size = 200 }: SantaProps) {
   const animRef = useRef<LottieRefCurrentProps | null>(null);
-  const flightTimeoutRef = useRef<number | null>(null);
   const [animationData, setAnimationData] = useState<any>(null);
-  const isFlyingRef = useRef(false);
+  const [progress, setProgress] = useState(0);
+  const [windowWidth, setWindowWidth] = useState(
+    typeof window !== "undefined" ? window.innerWidth : 1200,
+  );
 
   useEffect(() => {
-    const el = containerRef.current;
-
-    if (!el) return;
-    el.style.position = "fixed";
-    el.style.pointerEvents = "none";
-    el.style.width = `${size}px`;
-    el.style.height = `${size}px`;
-    el.style.zIndex = "40";
-
+    // Fetch Lottie animation
     const candidates = ["sleigh_ride.json"];
 
     (async () => {
@@ -367,94 +353,78 @@ export function SantaSleigh({
         }
       }
     })();
-
-    const attemptPlay = (attempts = 10, delay = 100) => {
-      if (animRef.current?.goToAndPlay) {
-        try {
-          animRef.current.goToAndPlay(0, true);
-        } catch {}
-
-        return true;
-      }
-      if (attempts <= 0) return false;
-      setTimeout(() => attemptPlay(attempts - 1, delay), delay);
-
-      return false;
+    // Window resize handler
+    const handleResize = () => {
+      setWindowWidth(window.innerWidth);
     };
 
-    const scheduleNextFlight = () => {
-      const delay = minDelay + Math.random() * (maxDelay - minDelay);
-
-      flightTimeoutRef.current = window.setTimeout(() => {
-        flyOnce();
-        scheduleNextFlight();
-      }, delay);
-    };
-
-    const flyOnce = () => {
-      if (!containerRef.current) return;
-      const el = containerRef.current;
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
-      const sx = -size;
-      const ex = vw;
-      const baseY = Math.round(vh * 0.6) - Math.round(size / 2);
-      const sy = baseY;
-      const ey = baseY;
-      const midX = Math.round(vw / 2);
-      const arcHeight = arcMin + Math.random() * (arcMax - arcMin);
-      const midY = Math.round(vh * 0.5) - arcHeight;
-
-      el.style.left = `${sx}px`;
-      el.style.top = `${sy}px`;
-      isFlyingRef.current = true;
-      attemptPlay(20, 100);
-      const baseDuration = 2200;
-      const duration = baseDuration + (vw / 1200) * 1800 + Math.random() * 1000;
-      const startTime = performance.now();
-      const step = (now: number) => {
-        const t = Math.min(1, (now - startTime) / duration);
-        const ix = (1 - t) * (1 - t) * sx + 2 * (1 - t) * t * midX + t * t * ex;
-        const iy = (1 - t) * (1 - t) * sy + 2 * (1 - t) * t * midY + t * t * ey;
-
-        el.style.left = `${Math.round(ix)}px`;
-        el.style.top = `${Math.round(iy)}px`;
-        const angle = (Math.atan2(ey - sy, ex - sx) * 180) / Math.PI;
-
-        el.style.transform = `translateZ(0) rotate(${angle * 0.6}deg)`;
-        if (t < 1) requestAnimationFrame(step);
-        else {
-          try {
-            animRef.current?.stop?.();
-          } catch {}
-          isFlyingRef.current = false;
-          el.style.transform = "translateZ(0)";
-        }
-      };
-
-      requestAnimationFrame(step);
-    };
-
-    scheduleNextFlight();
-    const initialTimeout = window.setTimeout(() => flyOnce(), 500);
+    window.addEventListener("resize", handleResize);
 
     return () => {
-      if (flightTimeoutRef.current) {
-        window.clearTimeout(flightTimeoutRef.current);
-        flightTimeoutRef.current = null;
-      }
-      window.clearTimeout(initialTimeout);
-      if (animRef.current) {
-        animRef.current?.destroy?.();
-        animRef.current = null;
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [size]);
+
+  // Framer Motion animation loop for arc path
+  useEffect(() => {
+    let rafId: number;
+    let start: number;
+    const duration = 2200 + (windowWidth / 1200) * 1800 + Math.random() * 1000;
+    const animateSanta = (timestamp: number) => {
+      if (!start) start = timestamp;
+      const elapsed = timestamp - start;
+      const t = Math.min(1, elapsed / duration);
+
+      setProgress(t);
+      if (t < 1) {
+        rafId = requestAnimationFrame(animateSanta);
+      } else {
+        setProgress(0);
+        start = undefined as any;
+        rafId = requestAnimationFrame(animateSanta);
       }
     };
-  }, [minDelay, maxDelay, size, arcMin, arcMax]);
+
+    rafId = requestAnimationFrame(animateSanta);
+
+    return () => cancelAnimationFrame(rafId);
+  }, [windowWidth, size]);
 
   if (!enabled) return null;
 
+  // Arc path calculation (quadratic Bezier)
+  const sx = -size;
+  const ex = windowWidth;
+  const baseY =
+    typeof window !== "undefined"
+      ? Math.round(window.innerHeight * 0.6) - Math.round(size / 2)
+      : 300;
+  const arcHeight = 180; // You can make this a prop if you want
+  const midX = Math.round(windowWidth / 2);
+  const midY = baseY - arcHeight;
+  // Quadratic Bezier formula
+  const getArcPosition = (t: number) => {
+    const x = (1 - t) * (1 - t) * sx + 2 * (1 - t) * t * midX + t * t * ex;
+    const y =
+      (1 - t) * (1 - t) * baseY + 2 * (1 - t) * t * midY + t * t * baseY;
+
+    return { x, y };
+  };
+  const { x, y } = getArcPosition(progress);
+
   return (
-    <div ref={containerRef} aria-hidden="true">
+    <motion.div
+      aria-hidden="true"
+      style={{
+        position: "fixed",
+        pointerEvents: "none",
+        width: `${size}px`,
+        height: `${size}px`,
+        zIndex: 40,
+        left: x,
+        top: y,
+      }}
+    >
       {animationData ? (
         <Lottie
           animationData={animationData}
@@ -464,6 +434,6 @@ export function SantaSleigh({
           style={{ width: "100%", height: "100%" }}
         />
       ) : null}
-    </div>
+    </motion.div>
   );
 }
