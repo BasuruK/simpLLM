@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
+import { useMemo } from "react";
 import Lottie, { LottieRefCurrentProps } from "lottie-react";
 
 interface SnowParticle {
@@ -325,9 +326,23 @@ interface SantaProps {
   demo?: boolean;
   yOffsetPercent?: number; // percent of viewport height to offset arc vertically
 }
-
-export function SantaSleigh({ enabled = true, size = 200 }: SantaProps) {
-  const { yOffsetPercent = -0.3, ...props } = arguments[0] || {};
+  enabled = true,
+  minDelay,
+  maxDelay,
+  size,
+  arcMin,
+  arcMax,
+  demo,
+  yOffsetPercent = 0.2,
+}: SantaProps) {
+  // Validate and coerce props
+  const sleighSize = typeof size === "number" && size > 0 ? size : 200;
+  const arcMinVal = typeof arcMin === "number" && arcMin > 0 ? arcMin : 80;
+  const arcMaxVal = typeof arcMax === "number" && arcMax > arcMinVal ? arcMax : 220;
+  const yOffset = typeof yOffsetPercent === "number" ? yOffsetPercent : 0.2;
+  const demoMode = !!demo;
+  const minDelayVal = typeof minDelay === "number" && minDelay > 0 ? minDelay : (demoMode ? 800 : 30000);
+  const maxDelayVal = typeof maxDelay === "number" && maxDelay > minDelayVal ? maxDelay : (demoMode ? 1600 : 180000);
   const animRef = useRef<LottieRefCurrentProps | null>(null);
   const [animationData, setAnimationData] = useState<any>(null);
   const [progress, setProgress] = useState(0);
@@ -336,23 +351,70 @@ export function SantaSleigh({ enabled = true, size = 200 }: SantaProps) {
   );
   const [showSanta, setShowSanta] = useState(false);
   const santaTimeoutRef = useRef<number | null>(null);
+  const [arcHeight, setArcHeight] = useState(arcMinVal + Math.random() * (arcMaxVal - arcMinVal));
+  // Memoize arc calculations after all dependencies are defined
+  const arcParams = useMemo(() => {
+    const sx = -sleighSize;
+    const ex = windowWidth;
+    const yOffset = typeof window !== "undefined" ? window.innerHeight * yOffsetPercent : 0;
+    const baseY = typeof window !== "undefined"
+      ? Math.round(window.innerHeight * 0.6) - Math.round(sleighSize / 2) + yOffset
+      : 300 + yOffset;
+    const midX = Math.round(windowWidth / 2);
+    const midY = baseY - arcHeight;
+
+    const getBezierPoint = (t: number) => {
+      const x = (1 - t) * (1 - t) * sx + 2 * (1 - t) * t * midX + t * t * ex;
+      const y = (1 - t) * (1 - t) * baseY + 2 * (1 - t) * t * midY + t * t * baseY;
+      return { x, y };
+    };
+
+    const getBezierAngle = (t: number) => {
+      const dx = 2 * (1 - t) * (midX - sx) + 2 * t * (ex - midX);
+      const dy = 2 * (1 - t) * (midY - baseY) + 2 * t * (baseY - midY);
+      return Math.atan2(dy, dx) * (180 / Math.PI);
+    };
+
+    const getArcLength = (steps = 100) => {
+      let length = 0;
+      let prev = getBezierPoint(0);
+      for (let i = 1; i <= steps; i++) {
+        const t = i / steps;
+        const curr = getBezierPoint(t);
+        length += Math.hypot(curr.x - prev.x, curr.y - prev.y);
+        prev = curr;
+      }
+      return length;
+    };
+
+    return {
+      getBezierPoint,
+      getBezierAngle,
+      arcLength: getArcLength(),
+    };
+  }, [windowWidth, sleighSize, yOffsetPercent, arcHeight]);
 
   useEffect(() => {
-    // Fetch Lottie animation
+    // Fetch Lottie animation with abort and mount guard
     const candidates = ["sleigh_ride.json"];
-
+    const controller = new AbortController();
+    let mounted = true;
     (async () => {
       for (const name of candidates) {
         try {
           const path = "/lottie/" + encodeURIComponent(name);
-          const res = await fetch(path);
-
+          const res = await fetch(path, { signal: controller.signal });
           if (!res.ok) continue;
           const j = await res.json();
-
-          setAnimationData(j);
+          if (mounted && !controller.signal.aborted) {
+            setAnimationData(j);
+          }
           break;
-        } catch {
+        } catch (err: any) {
+          if (err.name === "AbortError") {
+            // fetch aborted, do nothing
+            return;
+          }
           // next
         }
       }
@@ -366,24 +428,22 @@ export function SantaSleigh({ enabled = true, size = 200 }: SantaProps) {
 
     // Santa rare occurrence logic
     const scheduleSanta = () => {
-      // Random delay between 30s and 3min
-      const minDelay = 30000;
-      const maxDelay = 180000;
-      const delay = minDelay + Math.random() * (maxDelay - minDelay);
-
+      const delay = minDelayVal + Math.random() * (maxDelayVal - minDelayVal);
       santaTimeoutRef.current = window.setTimeout(() => {
-        // 35% chance to show Santa
-        if (Math.random() < 0.35) {
+        // 25% chance to show Santa
+        if (demoMode || Math.random() < 0.25) {
+          setArcHeight(arcMinVal + Math.random() * (arcMaxVal - arcMinVal));
           setShowSanta(true);
         } else {
           scheduleSanta();
         }
       }, delay);
     };
-
     scheduleSanta();
 
     return () => {
+      mounted = false;
+      controller.abort();
       window.removeEventListener("resize", handleResize);
       if (santaTimeoutRef.current) {
         window.clearTimeout(santaTimeoutRef.current);
@@ -397,114 +457,54 @@ export function SantaSleigh({ enabled = true, size = 200 }: SantaProps) {
     if (!showSanta) return;
     let rafId: number;
     let start: number;
-    const duration = 2200 + (windowWidth / 1200) * 1800 + Math.random() * 1000;
+    const duration = demoMode
+      ? 1200
+      : 2200 + (windowWidth / 1200) * 1800 + Math.random() * 1000;
     const animateSanta = (timestamp: number) => {
       if (!start) start = timestamp;
       const elapsed = timestamp - start;
       const t = Math.min(1, elapsed / duration);
-
       setProgress(t);
       if (t < 1) {
         rafId = requestAnimationFrame(animateSanta);
       } else {
         setProgress(0);
         setShowSanta(false);
-        // Schedule next rare occurrence
         if (santaTimeoutRef.current)
           window.clearTimeout(santaTimeoutRef.current);
         santaTimeoutRef.current = null;
         // Reschedule Santa
-        const minDelay = 30000;
-        const maxDelay = 40000;
-        const delay = minDelay + Math.random() * (maxDelay - minDelay);
-
+        const delay = minDelayVal + Math.random() * (maxDelayVal - minDelayVal);
         santaTimeoutRef.current = window.setTimeout(() => {
-          if (Math.random() < 0.25) {
+          if (demoMode || Math.random() < 0.25) {
+            setArcHeight(arcMinVal + Math.random() * (arcMaxVal - arcMinVal));
             setShowSanta(true);
-          } else {
-            // Try again later
-            santaTimeoutRef.current = window.setTimeout(
-              () => setShowSanta(true),
-              delay,
-            );
           }
+          // else: do nothing, next schedule will be handled by scheduleSanta in the main effect
         }, delay);
       }
     };
-
     rafId = requestAnimationFrame(animateSanta);
-
     return () => cancelAnimationFrame(rafId);
-  }, [windowWidth, size, showSanta]);
+  }, [windowWidth, sleighSize, showSanta, arcMinVal, arcMaxVal, minDelayVal, maxDelayVal, demoMode]);
 
   if (!enabled || !showSanta) return null;
 
-  // Arc path calculation (quadratic Bezier)
-  const sx = -size;
-  const ex = windowWidth;
-  // Move arc down by configurable percent of viewport height
-  const yOffset =
-    typeof window !== "undefined" ? window.innerHeight * yOffsetPercent : 0;
-  const baseY =
-    typeof window !== "undefined"
-      ? Math.round(window.innerHeight * 0.6) - Math.round(size / 2) + yOffset
-      : 300 + yOffset;
-  const arcHeight = 200; // You can make this a prop if you want
-  const midX = Math.round(windowWidth / 2);
-  const midY = baseY - arcHeight;
-  // Quadratic Bezier formula
-  // Helper to get point on curve
-  const getBezierPoint = (t: number) => {
-    const x = (1 - t) * (1 - t) * sx + 2 * (1 - t) * t * midX + t * t * ex;
-    const y =
-      (1 - t) * (1 - t) * baseY + 2 * (1 - t) * t * midY + t * t * baseY;
-
-    return { x, y };
-  };
-  // Helper to get tangent angle
-  const getBezierAngle = (t: number) => {
-    const dx = 2 * (1 - t) * (midX - sx) + 2 * t * (ex - midX);
-    const dy = 2 * (1 - t) * (midY - baseY) + 2 * t * (baseY - midY);
-
-    return Math.atan2(dy, dx) * (180 / Math.PI);
-  };
-  // Calculate arc length by sampling points
-  const getArcLength = (steps = 100) => {
-    let length = 0;
-    let prev = getBezierPoint(0);
-
-    for (let i = 1; i <= steps; i++) {
-      const t = i / steps;
-      const curr = getBezierPoint(t);
-
-      length += Math.hypot(curr.x - prev.x, curr.y - prev.y);
-      prev = curr;
-    }
-
-    return length;
-  };
-  const arcLength = getArcLength();
-  // Calculate current position along arc
+  // Memoized arc calculations
   const getArcDistance = (t: number, steps = 100) => {
     let length = 0;
-    let prev = getBezierPoint(0);
-
+    let prev = arcParams.getBezierPoint(0);
     for (let i = 1; i <= steps * t; i++) {
       const tt = i / steps;
-      const curr = getBezierPoint(tt);
-
+      const curr = arcParams.getBezierPoint(tt);
       length += Math.hypot(curr.x - prev.x, curr.y - prev.y);
       prev = curr;
     }
-
     return length;
   };
-  const { x, y } = getBezierPoint(progress);
-  // Normalized position along arc
-  const arcPos = getArcDistance(progress) / arcLength;
-  // Dynamic angle: base tangent + incremental adjustment
-  const baseAngle = getBezierAngle(progress);
-  // Example: increase angle by up to 30deg as Santa moves along arc
+  const { x, y } = arcParams.getBezierPoint(progress);
+  const arcPos = getArcDistance(progress) / arcParams.arcLength;
+  const baseAngle = arcParams.getBezierAngle(progress);
   const angle = baseAngle + arcPos * 30;
 
   return (
@@ -513,12 +513,11 @@ export function SantaSleigh({ enabled = true, size = 200 }: SantaProps) {
       style={{
         position: "fixed",
         pointerEvents: "none",
-        width: `${size}px`,
-        height: `${size}px`,
+        width: `${sleighSize}px`,
+        height: `${sleighSize}px`,
         zIndex: 40,
         left: x,
         top: y,
-        // Strictly adhere to the arc's tangent angle
         transform: `translateZ(0) rotate(${angle}deg)`,
         transformOrigin: "50% 50%",
       }}
