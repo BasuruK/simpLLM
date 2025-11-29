@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { motion } from "motion/react";
 import { useMemo } from "react";
 import Lottie, { LottieRefCurrentProps } from "lottie-react";
@@ -20,25 +20,25 @@ interface SnowProps {
   particleCount?: number;
   className?: string;
   sleighEnabled?: boolean;
-  sleighMinDelay?: number;
-  sleighMaxDelay?: number;
   sleighSize?: number;
   sleighArcMin?: number;
   sleighArcMax?: number;
-  sleighDemo?: boolean;
+  minDelayVal?: number;
+  maxDelayVal?: number;
 }
 
 export function Snow({
   particleCount = 150,
   className = "",
   sleighEnabled = true,
-  sleighMinDelay = 8000,
-  sleighMaxDelay = 38000,
   sleighSize = 200,
   sleighArcMin = 80,
   sleighArcMax = 220,
-  sleighDemo = false,
+  minDelayVal = 4000,
+  maxDelayVal = 12000,
 }: SnowProps) {
+  const currentMonth = new Date().getMonth();
+
   const bgCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const fgCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const animationRef = useRef<number | null>(null);
@@ -275,6 +275,8 @@ export function Snow({
     };
   }, [particleCount]);
 
+  if (currentMonth !== 11) return null;
+
   return (
     <>
       <canvas
@@ -303,13 +305,12 @@ export function Snow({
       />
       {sleighEnabled ? (
         <SantaSleigh
-          arcMax={sleighDemo ? Math.min(180, sleighArcMax) : sleighArcMax}
-          arcMin={sleighDemo ? Math.max(40, sleighArcMin) : sleighArcMin}
-          demo={sleighDemo}
+          arcMax={sleighArcMax}
+          arcMin={sleighArcMin}
           enabled={sleighEnabled}
-          maxDelay={sleighDemo ? 1600 : sleighMaxDelay}
-          minDelay={sleighDemo ? 800 : sleighMinDelay}
-          size={sleighDemo ? Math.max(300, sleighSize) : sleighSize}
+          maxDelay={maxDelayVal}
+          minDelay={minDelayVal}
+          size={sleighSize}
         />
       ) : null}
     </>
@@ -323,26 +324,25 @@ interface SantaProps {
   size?: number;
   arcMin?: number;
   arcMax?: number;
-  demo?: boolean;
-  yOffsetPercent?: number; // percent of viewport height to offset arc vertically
+  yOffsetPercent?: number;
 }
+
+function SantaSleigh({
   enabled = true,
   minDelay,
   maxDelay,
   size,
   arcMin,
   arcMax,
-  demo,
-  yOffsetPercent = 0.2,
+  yOffsetPercent = -0.4,
 }: SantaProps) {
-  // Validate and coerce props
   const sleighSize = typeof size === "number" && size > 0 ? size : 200;
   const arcMinVal = typeof arcMin === "number" && arcMin > 0 ? arcMin : 80;
-  const arcMaxVal = typeof arcMax === "number" && arcMax > arcMinVal ? arcMax : 220;
+  const arcMaxVal =
+    typeof arcMax === "number" && arcMax > arcMinVal ? arcMax : 220;
   const yOffset = typeof yOffsetPercent === "number" ? yOffsetPercent : 0.2;
-  const demoMode = !!demo;
-  const minDelayVal = typeof minDelay === "number" && minDelay > 0 ? minDelay : (demoMode ? 800 : 30000);
-  const maxDelayVal = typeof maxDelay === "number" && maxDelay > minDelayVal ? maxDelay : (demoMode ? 1600 : 180000);
+  const minDelayVal = minDelay ?? 1000;
+  const maxDelayVal = maxDelay ?? 2000;
   const animRef = useRef<LottieRefCurrentProps | null>(null);
   const [animationData, setAnimationData] = useState<any>(null);
   const [progress, setProgress] = useState(0);
@@ -351,39 +351,64 @@ interface SantaProps {
   );
   const [showSanta, setShowSanta] = useState(false);
   const santaTimeoutRef = useRef<number | null>(null);
-  const [arcHeight, setArcHeight] = useState(arcMinVal + Math.random() * (arcMaxVal - arcMinVal));
-  // Memoize arc calculations after all dependencies are defined
+  const [arcHeight, setArcHeight] = useState(
+    arcMinVal + Math.random() * (arcMaxVal - arcMinVal),
+  );
+
+  const scheduleSanta = useCallback(() => {
+    const delay = minDelayVal + Math.random() * (maxDelayVal - minDelayVal);
+
+    santaTimeoutRef.current = window.setTimeout(() => {
+      if (Math.random() < 0.1) {
+        setArcHeight(arcMinVal + Math.random() * (arcMaxVal - arcMinVal));
+        setShowSanta(true);
+      } else {
+        scheduleSanta();
+      }
+    }, delay);
+  }, [minDelayVal, maxDelayVal, arcMinVal, arcMaxVal]);
+
   const arcParams = useMemo(() => {
     const sx = -sleighSize;
     const ex = windowWidth;
-    const yOffset = typeof window !== "undefined" ? window.innerHeight * yOffsetPercent : 0;
-    const baseY = typeof window !== "undefined"
-      ? Math.round(window.innerHeight * 0.6) - Math.round(sleighSize / 2) + yOffset
-      : 300 + yOffset;
+    const yOffsetPx =
+      typeof window !== "undefined" ? window.innerHeight * yOffset : 0;
+    const baseY =
+      typeof window !== "undefined"
+        ? Math.round(window.innerHeight * 0.6) -
+          Math.round(sleighSize / 2) +
+          yOffsetPx
+        : 300 + yOffsetPx;
     const midX = Math.round(windowWidth / 2);
     const midY = baseY - arcHeight;
 
     const getBezierPoint = (t: number) => {
       const x = (1 - t) * (1 - t) * sx + 2 * (1 - t) * t * midX + t * t * ex;
-      const y = (1 - t) * (1 - t) * baseY + 2 * (1 - t) * t * midY + t * t * baseY;
+      const y =
+        (1 - t) * (1 - t) * baseY + 2 * (1 - t) * t * midY + t * t * baseY;
+
       return { x, y };
     };
 
     const getBezierAngle = (t: number) => {
       const dx = 2 * (1 - t) * (midX - sx) + 2 * t * (ex - midX);
       const dy = 2 * (1 - t) * (midY - baseY) + 2 * t * (baseY - midY);
+
       return Math.atan2(dy, dx) * (180 / Math.PI);
     };
 
     const getArcLength = (steps = 100) => {
       let length = 0;
       let prev = getBezierPoint(0);
+
       for (let i = 1; i <= steps; i++) {
         const t = i / steps;
         const curr = getBezierPoint(t);
+
         length += Math.hypot(curr.x - prev.x, curr.y - prev.y);
         prev = curr;
       }
+
       return length;
     };
 
@@ -392,53 +417,33 @@ interface SantaProps {
       getBezierAngle,
       arcLength: getArcLength(),
     };
-  }, [windowWidth, sleighSize, yOffsetPercent, arcHeight]);
+  }, [windowWidth, sleighSize, yOffset, arcHeight]);
 
   useEffect(() => {
-    // Fetch Lottie animation with abort and mount guard
-    const candidates = ["sleigh_ride.json"];
     const controller = new AbortController();
     let mounted = true;
+
     (async () => {
-      for (const name of candidates) {
-        try {
-          const path = "/lottie/" + encodeURIComponent(name);
-          const res = await fetch(path, { signal: controller.signal });
-          if (!res.ok) continue;
+      try {
+        const path = "/lottie/sleigh_ride.json";
+        const res = await fetch(path, { signal: controller.signal });
+
+        if (res.ok && mounted && !controller.signal.aborted) {
           const j = await res.json();
-          if (mounted && !controller.signal.aborted) {
-            setAnimationData(j);
-          }
-          break;
-        } catch (err: any) {
-          if (err.name === "AbortError") {
-            // fetch aborted, do nothing
-            return;
-          }
-          // next
+
+          setAnimationData(j);
         }
+      } catch {
+        // Ignore errors
       }
     })();
-    // Window resize handler
+
     const handleResize = () => {
       setWindowWidth(window.innerWidth);
     };
 
     window.addEventListener("resize", handleResize);
 
-    // Santa rare occurrence logic
-    const scheduleSanta = () => {
-      const delay = minDelayVal + Math.random() * (maxDelayVal - minDelayVal);
-      santaTimeoutRef.current = window.setTimeout(() => {
-        // 25% chance to show Santa
-        if (demoMode || Math.random() < 0.25) {
-          setArcHeight(arcMinVal + Math.random() * (arcMaxVal - arcMinVal));
-          setShowSanta(true);
-        } else {
-          scheduleSanta();
-        }
-      }, delay);
-    };
     scheduleSanta();
 
     return () => {
@@ -450,56 +455,61 @@ interface SantaProps {
         santaTimeoutRef.current = null;
       }
     };
-  }, [size]);
+  }, [minDelayVal, maxDelayVal, arcMinVal, arcMaxVal]);
 
-  // Framer Motion animation loop for arc path
   useEffect(() => {
     if (!showSanta) return;
     let rafId: number;
     let start: number;
-    const duration = demoMode
-      ? 1200
-      : 2200 + (windowWidth / 1200) * 1800 + Math.random() * 1000;
+    const duration =
+      (2200 + (windowWidth / 1200) * 1800 + Math.random() * 1000) * 1.45;
     const animateSanta = (timestamp: number) => {
       if (!start) start = timestamp;
       const elapsed = timestamp - start;
       const t = Math.min(1, elapsed / duration);
+
       setProgress(t);
       if (t < 1) {
         rafId = requestAnimationFrame(animateSanta);
       } else {
         setProgress(0);
         setShowSanta(false);
-        if (santaTimeoutRef.current)
+        if (santaTimeoutRef.current) {
           window.clearTimeout(santaTimeoutRef.current);
-        santaTimeoutRef.current = null;
-        // Reschedule Santa
-        const delay = minDelayVal + Math.random() * (maxDelayVal - minDelayVal);
-        santaTimeoutRef.current = window.setTimeout(() => {
-          if (demoMode || Math.random() < 0.25) {
-            setArcHeight(arcMinVal + Math.random() * (arcMaxVal - arcMinVal));
-            setShowSanta(true);
-          }
-          // else: do nothing, next schedule will be handled by scheduleSanta in the main effect
-        }, delay);
+          santaTimeoutRef.current = null;
+        }
+        scheduleSanta();
       }
     };
+
     rafId = requestAnimationFrame(animateSanta);
+
     return () => cancelAnimationFrame(rafId);
-  }, [windowWidth, sleighSize, showSanta, arcMinVal, arcMaxVal, minDelayVal, maxDelayVal, demoMode]);
+  }, [
+    windowWidth,
+    sleighSize,
+    showSanta,
+    arcMinVal,
+    arcMaxVal,
+    minDelayVal,
+    maxDelayVal,
+    scheduleSanta,
+  ]);
 
   if (!enabled || !showSanta) return null;
 
-  // Memoized arc calculations
   const getArcDistance = (t: number, steps = 100) => {
     let length = 0;
     let prev = arcParams.getBezierPoint(0);
+
     for (let i = 1; i <= steps * t; i++) {
       const tt = i / steps;
       const curr = arcParams.getBezierPoint(tt);
+
       length += Math.hypot(curr.x - prev.x, curr.y - prev.y);
       prev = curr;
     }
+
     return length;
   };
   const { x, y } = arcParams.getBezierPoint(progress);
