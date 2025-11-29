@@ -54,7 +54,7 @@ export function Snow({
   });
   const gustTimeoutRef = useRef<number | null>(null);
 
-  const initializeParticles = () => {
+  const initializeParticles = useCallback(() => {
     const particles: SnowParticle[] = [];
     const total = Math.ceil(particleCount * 1.1);
     const cssWidth = Math.max(1, window.innerWidth);
@@ -79,7 +79,7 @@ export function Snow({
     }
 
     return particles;
-  };
+  }, [particleCount]);
 
   const updateWind = () => {
     const time = Date.now() * 0.001;
@@ -109,7 +109,7 @@ export function Snow({
     windRef.current.y = baseY;
   };
 
-  const scheduleNextGust = () => {
+  const scheduleNextGust = useCallback(() => {
     if (gustTimeoutRef.current) {
       window.clearTimeout(gustTimeoutRef.current);
       gustTimeoutRef.current = null;
@@ -121,7 +121,7 @@ export function Snow({
 
       triggerGust(undefined, isExtreme ? "extreme" : "normal");
     }, delay);
-  };
+  }, []);
 
   const triggerGust = (
     strengthOverride?: number,
@@ -167,11 +167,15 @@ export function Snow({
       particle.vy *= 0.998;
       particle.x += particle.vx;
       particle.y += particle.vy;
-      if (particle.x > canvas.width + 10) particle.x = -10;
-      else if (particle.x < -10) particle.x = canvas.width + 10;
-      if (particle.y > canvas.height + 10) {
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
+      const cssWidth = canvas.width / dpr;
+      const cssHeight = canvas.height / dpr;
+
+      if (particle.x > cssWidth + 10) particle.x = -10;
+      else if (particle.x < -10) particle.x = cssWidth + 10;
+      if (particle.y > cssHeight + 10) {
         particle.y = -10;
-        particle.x = Math.random() * canvas.width;
+        particle.x = Math.random() * cssWidth;
         particle.vy = Math.random() * 1 + 0.5;
       }
     });
@@ -212,7 +216,7 @@ export function Snow({
     });
   };
 
-  const animate = () => {
+  const animate = useCallback(() => {
     const bgCanvas = bgCanvasRef.current;
     const fgCanvas = fgCanvasRef.current;
     const bgCtx = bgCanvas?.getContext("2d");
@@ -231,9 +235,9 @@ export function Snow({
     renderToContext(bgParticles, bgCanvas, bgCtx);
     renderToContext(fgParticles, fgCanvas, fgCtx);
     animationRef.current = requestAnimationFrame(animate);
-  };
+  }, []);
 
-  const handleResize = () => {
+  const handleResize = useCallback(() => {
     const bgCanvas = bgCanvasRef.current;
     const fgCanvas = fgCanvasRef.current;
 
@@ -252,7 +256,7 @@ export function Snow({
       if (ctx) ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     });
     particlesRef.current = initializeParticles();
-  };
+  }, [initializeParticles]);
 
   useEffect(() => {
     const bgCanvas = bgCanvasRef.current;
@@ -260,7 +264,6 @@ export function Snow({
 
     if (!bgCanvas || !fgCanvas) return;
     handleResize();
-    particlesRef.current = initializeParticles();
     animate();
     window.addEventListener("resize", handleResize);
     scheduleNextGust();
@@ -273,7 +276,7 @@ export function Snow({
         gustTimeoutRef.current = null;
       }
     };
-  }, [particleCount]);
+  }, [particleCount, handleResize, animate, scheduleNextGust]);
 
   if (currentMonth !== 11) return null;
 
@@ -346,9 +349,7 @@ function SantaSleigh({
   const animRef = useRef<LottieRefCurrentProps | null>(null);
   const [animationData, setAnimationData] = useState<any>(null);
   const [progress, setProgress] = useState(0);
-  const [windowWidth, setWindowWidth] = useState(
-    typeof window !== "undefined" ? window.innerWidth : 1200,
-  );
+  const [windowWidth, setWindowWidth] = useState(1200);
   const [showSanta, setShowSanta] = useState(false);
   const santaTimeoutRef = useRef<number | null>(null);
   const [arcHeight, setArcHeight] = useState(
@@ -455,7 +456,7 @@ function SantaSleigh({
         santaTimeoutRef.current = null;
       }
     };
-  }, [minDelayVal, maxDelayVal, arcMinVal, arcMaxVal]);
+  }, [minDelayVal, maxDelayVal, arcMinVal, arcMaxVal, scheduleSanta]);
 
   useEffect(() => {
     if (!showSanta) return;
