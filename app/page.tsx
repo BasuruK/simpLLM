@@ -56,6 +56,7 @@ import { JsonTable } from "@/components/json-table";
 import { LoginScreen } from "@/components/login-screen";
 import { Navbar } from "@/components/navbar";
 import { FilePreview } from "@/components/file-preview";
+import { Snow } from "@/components/snow";
 import {
   isAuthenticated,
   getUsername,
@@ -861,6 +862,7 @@ export default function Home() {
 
   return (
     <>
+      <Snow sleighDemo={true} />
       <Navbar
         avatarUrl={avatarUrl}
         historyCount={historyItems.length}
