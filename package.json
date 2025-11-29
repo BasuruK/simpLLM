@@ -58,6 +58,7 @@
     "electron-log": "^5.4.3",
     "electron-serve": "^3.0.0",
     "electron-updater": "^6.6.2",
+    "immer": "^11.0.1",
     "lottie-react": "^2.4.1",
     "motion": "^12.23.24",
     "next": "^15.5.6",
@@ -67,7 +68,8 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-pdf": "^10.2.0",
-    "swiper": "^12.0.3"
+    "swiper": "^12.0.3",
+    "zustand": "^5.0.8"
   },
   "devDependencies": {
     "@eslint/compat": "^1.4.0",

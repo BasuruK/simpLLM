@@ -1,0 +1,4 @@
+npm warn Unknown project config "public-hoist-pattern". This will stop working in the next major version of npm.
+
+> simpllm@0.0.7 dev
+> next dev --turbopack -p 3001

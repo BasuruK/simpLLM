@@ -35,6 +35,7 @@ const stripMarkdownCodeFence = (input: string): string => {
   } catch (error) {
     // If anything goes wrong with string manipulation, return the original input
     console.warn("Error in stripMarkdownCodeFence:", error);
+
     return input;
   }
 };
@@ -93,6 +94,7 @@ function normalizeExtractedData(
         data,
       );
     }
+
     return null;
   }
 }

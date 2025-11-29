@@ -56,7 +56,8 @@ export function FilePreview({
       {/* Selected pages indicator for PDFs */}
       {selectedPages.length > 0 && (
         <div className="absolute top-2 right-2 bg-primary-50/90 dark:bg-primary-950/90 text-primary-700 dark:text-primary-300 px-3 py-1 rounded-full text-xs font-semibold shadow-md backdrop-blur-sm">
-          {selectedPages.length} page{selectedPages.length > 1 ? "s" : ""} selected{" "}
+          {selectedPages.length} page{selectedPages.length > 1 ? "s" : ""}{" "}
+          selected{" "}
         </div>
       )}
     </div>
