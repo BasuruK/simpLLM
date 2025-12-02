@@ -693,70 +693,73 @@ export default function Home() {
     }
   };
 
-  const getProcessedFiles = async (files: File[]): Promise<File[]> => {
-    const processed: File[] = [];
+  const getProcessedFiles = useCallback(
+    async (files: File[]): Promise<File[]> => {
+      const processed: File[] = [];
 
-    for (const file of files) {
-      if (file.type === "application/pdf") {
-        const id = `${file.name}_${file.size}_${file.lastModified}`;
-        const selected = selectedPagesMap[id] || [];
+      for (const file of files) {
+        if (file.type === "application/pdf") {
+          const id = `${file.name}_${file.size}_${file.lastModified}`;
+          const selected = selectedPagesMap[id] || [];
 
-        if (selected.length > 0) {
-          // split the PDF
-          const arrayBuffer = await file.arrayBuffer();
-          const pdfDoc = await PDFDocument.load(arrayBuffer);
-          const numPages = pdfDoc.getPageCount();
-          const groups: number[][] = [];
-          let currentGroup: number[] = [];
+          if (selected.length > 0) {
+            // split the PDF
+            const arrayBuffer = await file.arrayBuffer();
+            const pdfDoc = await PDFDocument.load(arrayBuffer);
+            const numPages = pdfDoc.getPageCount();
+            const groups: number[][] = [];
+            let currentGroup: number[] = [];
 
-          for (let i = 1; i <= numPages; i++) {
-            if (selected.includes(i)) {
-              if (currentGroup.length > 0) {
-                groups.push(currentGroup);
+            for (let i = 1; i <= numPages; i++) {
+              if (selected.includes(i)) {
+                if (currentGroup.length > 0) {
+                  groups.push(currentGroup);
+                }
+                currentGroup = [i];
+              } else {
+                currentGroup.push(i);
               }
-              currentGroup = [i];
-            } else {
-              currentGroup.push(i);
             }
-          }
-          if (currentGroup.length > 0) {
-            groups.push(currentGroup);
-          }
-          for (const group of groups) {
-            const newPdf = await PDFDocument.create();
-            const copiedPages = await newPdf.copyPages(
-              pdfDoc,
-              group.map((p) => p - 1),
-            );
+            if (currentGroup.length > 0) {
+              groups.push(currentGroup);
+            }
+            for (const group of groups) {
+              const newPdf = await PDFDocument.create();
+              const copiedPages = await newPdf.copyPages(
+                pdfDoc,
+                group.map((p) => p - 1),
+              );
 
-            copiedPages.forEach((page) => newPdf.addPage(page));
-            const pdfBytes = await newPdf.save();
-            const pdfBlob = new Blob([new Uint8Array(pdfBytes)], {
-              type: "application/pdf",
-            });
-            const nameSuffix =
-              group.length === 1
-                ? `_page${group[0]}`
-                : `_pages${group.join("-")}`;
+              copiedPages.forEach((page) => newPdf.addPage(page));
+              const pdfBytes = await newPdf.save();
+              const pdfBlob = new Blob([new Uint8Array(pdfBytes)], {
+                type: "application/pdf",
+              });
+              const nameSuffix =
+                group.length === 1
+                  ? `_page${group[0]}`
+                  : `_pages${group.join("-")}`;
 
-            processed.push(
-              new File(
-                [pdfBlob],
-                `${file.name.replace(/\.pdf$/, "")}${nameSuffix}.pdf`,
-                { type: "application/pdf" },
-              ),
-            );
+              processed.push(
+                new File(
+                  [pdfBlob],
+                  `${file.name.replace(/\.pdf$/, "")}${nameSuffix}.pdf`,
+                  { type: "application/pdf" },
+                ),
+              );
+            }
+          } else {
+            processed.push(file);
           }
         } else {
           processed.push(file);
         }
-      } else {
-        processed.push(file);
       }
-    }
 
-    return processed;
-  };
+      return processed;
+    },
+    [selectedPagesMap],
+  );
 
   // Handle extraction with PDF processing
   const handleExtractWithProcessing = useCallback(async () => {
@@ -788,7 +791,13 @@ export default function Home() {
     } finally {
       setIsProcessingPdf(false);
     }
-  }, [selectedFiles, startBatchJob, handleExtractData, handleClearImage]);
+  }, [
+    selectedFiles,
+    getProcessedFiles,
+    startBatchJob,
+    handleExtractData,
+    handleClearImage,
+  ]);
 
   // Extract text from system prompt structure
   const getSystemPromptText = (): string => {

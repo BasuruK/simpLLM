@@ -29,7 +29,7 @@ export function StructuredDataView({
         <h2 className="text-lg font-semibold">Structured Data View</h2>
         {extractionUsage && (
           <div className="flex items-center gap-4 text-sm text-default-500">
-            <Tooltip content="Input Tokens (Prompt/ Recipie + Document).">
+            <Tooltip content="Input Tokens (Prompt/ Recipe + Document).">
               <div className="flex items-center gap-1.5 cursor-help">
                 <InputTokenIcon size={16} />
                 <span className="font-medium">
