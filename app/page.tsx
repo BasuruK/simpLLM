@@ -2,17 +2,8 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import dynamic from "next/dynamic";
-import { Swiper, SwiperSlide } from "swiper/react";
-import { Navigation, Pagination, Keyboard } from "swiper/modules";
-import "swiper/css";
-import "swiper/css/navigation";
-import "swiper/css/pagination";
 import { Button } from "@heroui/button";
-import { Card } from "@heroui/card";
-import { Image } from "@heroui/image";
-import { Skeleton } from "@heroui/skeleton";
 import { Spinner } from "@heroui/spinner";
-import { Tooltip } from "@heroui/tooltip";
 import { Alert } from "@heroui/alert";
 import {
   Drawer,
@@ -21,41 +12,17 @@ import {
   DrawerBody,
   DrawerFooter,
 } from "@heroui/drawer";
-import {
-  Modal,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
-  useDisclosure,
-} from "@heroui/modal";
+import { useDisclosure } from "@heroui/modal";
 import { PDFDocument } from "pdf-lib";
 
 import { extractDataFromFile, ExtractionUsage } from "@/lib/openai";
-import {
-  UploadIcon,
-  CopyIcon,
-  TrashIcon,
-  SparklesIcon,
-  InputTokenIcon,
-  OutputTokenIcon,
-  TokenIcon,
-  ClockIcon,
-  CacheIcon,
-  CheckIcon,
-  DollarIcon,
-  ScrewdriverIcon,
-  HistoryIcon,
-  StarIcon,
-  SaveIcon,
-  DocumentIcon,
-  BackIcon,
-} from "@/components/icons";
-import { CodeEditor } from "@/components/code-editor";
-import { JsonTable } from "@/components/json-table";
+import { ExtractedDataCard } from "@/components/extracted-data-card";
 import { LoginScreen } from "@/components/login-screen";
 import { Navbar } from "@/components/navbar";
-import { FilePreview } from "@/components/file-preview";
+import { FilePreviewCarousel } from "@/components/file-preview-carousel";
+import { FileUploadZone, DragOverlay } from "@/components/file-upload-zone";
+import { HistoryDrawer } from "@/components/history-drawer";
+import { StructuredDataView } from "@/components/structured-data-view";
 import { Snow } from "@/components/snow";
 import {
   isAuthenticated,
@@ -283,10 +250,6 @@ export default function Home() {
     if (files && files.length > 0) {
       processFiles(Array.from(files));
     }
-  };
-
-  const handleButtonClick = () => {
-    fileInputRef.current?.click();
   };
 
   // PDF page count is now set via PdfPageDrawer's onNumPages callback
@@ -730,70 +693,111 @@ export default function Home() {
     }
   };
 
-  const getProcessedFiles = async (files: File[]): Promise<File[]> => {
-    const processed: File[] = [];
+  const getProcessedFiles = useCallback(
+    async (files: File[]): Promise<File[]> => {
+      const processed: File[] = [];
 
-    for (const file of files) {
-      if (file.type === "application/pdf") {
-        const id = `${file.name}_${file.size}_${file.lastModified}`;
-        const selected = selectedPagesMap[id] || [];
+      for (const file of files) {
+        if (file.type === "application/pdf") {
+          const id = `${file.name}_${file.size}_${file.lastModified}`;
+          const selected = selectedPagesMap[id] || [];
 
-        if (selected.length > 0) {
-          // split the PDF
-          const arrayBuffer = await file.arrayBuffer();
-          const pdfDoc = await PDFDocument.load(arrayBuffer);
-          const numPages = pdfDoc.getPageCount();
-          const groups: number[][] = [];
-          let currentGroup: number[] = [];
+          if (selected.length > 0) {
+            // split the PDF
+            const arrayBuffer = await file.arrayBuffer();
+            const pdfDoc = await PDFDocument.load(arrayBuffer);
+            const numPages = pdfDoc.getPageCount();
+            const groups: number[][] = [];
+            let currentGroup: number[] = [];
 
-          for (let i = 1; i <= numPages; i++) {
-            if (selected.includes(i)) {
-              if (currentGroup.length > 0) {
-                groups.push(currentGroup);
+            for (let i = 1; i <= numPages; i++) {
+              if (selected.includes(i)) {
+                if (currentGroup.length > 0) {
+                  groups.push(currentGroup);
+                }
+                currentGroup = [i];
+              } else {
+                currentGroup.push(i);
               }
-              currentGroup = [i];
-            } else {
-              currentGroup.push(i);
             }
-          }
-          if (currentGroup.length > 0) {
-            groups.push(currentGroup);
-          }
-          for (const group of groups) {
-            const newPdf = await PDFDocument.create();
-            const copiedPages = await newPdf.copyPages(
-              pdfDoc,
-              group.map((p) => p - 1),
-            );
+            if (currentGroup.length > 0) {
+              groups.push(currentGroup);
+            }
+            for (const group of groups) {
+              const newPdf = await PDFDocument.create();
+              const copiedPages = await newPdf.copyPages(
+                pdfDoc,
+                group.map((p) => p - 1),
+              );
 
-            copiedPages.forEach((page) => newPdf.addPage(page));
-            const pdfBytes = await newPdf.save();
-            const pdfBlob = new Blob([new Uint8Array(pdfBytes)], {
-              type: "application/pdf",
-            });
-            const nameSuffix =
-              group.length === 1
-                ? `_page${group[0]}`
-                : `_pages${group.join("-")}`;
+              copiedPages.forEach((page) => newPdf.addPage(page));
+              const pdfBytes = await newPdf.save();
+              const pdfBlob = new Blob([new Uint8Array(pdfBytes)], {
+                type: "application/pdf",
+              });
+              const nameSuffix =
+                group.length === 1
+                  ? `_page${group[0]}`
+                  : `_pages${group.join("-")}`;
 
-            processed.push(
-              new File(
-                [pdfBlob],
-                `${file.name.replace(/\.pdf$/, "")}${nameSuffix}.pdf`,
-                { type: "application/pdf" },
-              ),
-            );
+              processed.push(
+                new File(
+                  [pdfBlob],
+                  `${file.name.replace(/\.pdf$/, "")}${nameSuffix}.pdf`,
+                  { type: "application/pdf" },
+                ),
+              );
+            }
+          } else {
+            processed.push(file);
           }
         } else {
           processed.push(file);
         }
-      } else {
-        processed.push(file);
       }
-    }
 
-    return processed;
-  };
+      return processed;
+    },
+    [selectedPagesMap],
+  );
+
+  // Handle extraction with PDF processing
+  const handleExtractWithProcessing = useCallback(async () => {
+    setIsProcessingPdf(true);
+    try {
+      const processedFiles = await getProcessedFiles(selectedFiles);
+
+      if (
+        processedFiles.length > 1 ||
+        (processedFiles.length === 1 && processedFiles[0] !== selectedFiles[0])
+      ) {
+        await startBatchJob(processedFiles);
+        setLiveMessage(
+          `Started background processing of ${processedFiles.length} invoice${processedFiles.length !== 1 ? "s" : ""}.`,
+        );
+        setShowBatchNotification(true);
+        if (batchNotificationTimeoutRef.current) {
+          clearTimeout(batchNotificationTimeoutRef.current);
+        }
+        batchNotificationTimeoutRef.current = setTimeout(() => {
+          setShowBatchNotification(false);
+          batchNotificationTimeoutRef.current = null;
+        }, 5000);
+        handleClearImage();
+      } else {
+        // Single file, no splitting
+        await handleExtractData();
+      }
+    } finally {
+      setIsProcessingPdf(false);
+    }
+  }, [
+    selectedFiles,
+    getProcessedFiles,
+    startBatchJob,
+    handleExtractData,
+    handleClearImage,
+  ]);
 
   // Extract text from system prompt structure
   const getSystemPromptText = (): string => {
@@ -862,7 +866,7 @@ export default function Home() {
 
   return (
     <>
-      <Snow sleighDemo={true} />
+      <Snow />
       <Navbar
         avatarUrl={avatarUrl}
         historyCount={historyItems.length}
@@ -913,23 +917,7 @@ export default function Home() {
         onDrop={handleDrop}
       >
         {/* Drag Overlay */}
-        {isDragging && (
-          <div className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none">
-            <div className="border-3 border-dashed border-primary-400/60 rounded-3xl p-12 bg-primary-50/90 dark:bg-primary-950/90 backdrop-blur-sm shadow-2xl shadow-primary-500/20">
-              <div className="flex flex-col items-center gap-4">
-                <UploadIcon className="text-primary-500" size={64} />
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-primary-600 dark:text-primary-400">
-                    Drop your files here
-                  </p>
-                  <p className="text-sm text-primary-500 mt-2">
-                    Supports images and PDF files
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        <DragOverlay isDragging={isDragging} />
 
         {selectedFiles.length > 0 ? (
           <>
@@ -943,414 +931,58 @@ export default function Home() {
                 }
               >
                 {/* File Preview Card with Swiper */}
-                <Card
-                  className={`p-4 transition-all duration-1000 ease-in-out ${
-                    isDataExtracted ? "" : "mx-auto w-full"
-                  }`}
-                >
-                  <div
-                    aria-label="File preview carousel"
-                    aria-roledescription="carousel"
-                    className="relative w-full"
-                    role="region"
-                  >
-                    {/* Live region for screen reader announcements */}
-                    <div
-                      aria-atomic="true"
-                      aria-live="polite"
-                      className="sr-only"
-                    >
-                      {liveMessage}
-                    </div>
-
-                    <Swiper
-                      navigation
-                      keyboard={{ enabled: true }}
-                      modules={[Navigation, Pagination, Keyboard]}
-                      pagination={{ clickable: true }}
-                      slidesPerView={1}
-                      spaceBetween={0}
-                      style={{ paddingBottom: "20px" }}
-                      onSlideChange={(swiper) => {
-                        setCurrentFileIndex(swiper.activeIndex);
-                        setLiveMessage(
-                          `Viewing file ${swiper.activeIndex + 1} of ${selectedFiles.length}`,
-                        );
-                      }}
-                    >
-                      {selectedFiles.map((file, index) => (
-                        <SwiperSlide
-                          key={index}
-                          aria-label={`${file.name} (Slide ${index + 1} of ${selectedFiles.length})`}
-                          aria-roledescription="slide"
-                          role="group"
-                        >
-                          <FilePreview
-                            file={file}
-                            fileIndex={index}
-                            fileUrl={fileUrls[index]}
-                            minRows={34}
-                            selectedPages={
-                              selectedPagesMap[
-                                `${file.name}_${file.size}_${file.lastModified}`
-                              ] || []
-                            }
-                            totalFiles={selectedFiles.length}
-                          />
-                        </SwiperSlide>
-                      ))}
-                    </Swiper>
-
-                    {/* File count indicator - centered at bottom */}
-                    {selectedFiles.length > 1 && (
-                      <div
-                        aria-hidden="true"
-                        className="absolute bottom-0 left-1/2 transform -translate-x-1/2 flex items-center gap-2 text-default-500 bg-default-100/80 dark:bg-default-50/80 backdrop-blur-sm rounded-full"
-                      >
-                        <DocumentIcon size={16} />
-                        <span className="text-sm font-medium">
-                          {currentFileIndex + 1} / {selectedFiles.length}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex justify-between items-center gap-2 mt-2">
-                    {/* Spinner indicator when extracting */}
-                    {isExtracting && (
-                      <div className="flex items-center gap-2 text-success">
-                        <Spinner color="success" size="sm" />
-                        <span className="text-sm font-medium">
-                          Extracting data...
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Saved item indicator */}
-                    {!isExtracting && currentHistoryId && (
-                      <div className="flex items-center gap-2 text-primary">
-                        <HistoryIcon size={18} />
-                        <span className="text-sm font-medium">
-                          Viewing saved extraction
-                        </span>
-                      </div>
-                    )}
-
-                    <div className="flex gap-2 ml-auto">
-                      {!isDataExtracted && !currentHistoryId && selectedFiles[currentFileIndex]?.type ===
-                        "application/pdf" &&
-                        pdfPageCount > 1 && (
-                          <Button
-                            color="secondary"
-                            startContent={<DocumentIcon size={18} />}
-                            variant="flat"
-                            onPress={onPdfDrawerOpen}
-                          >
-                            Mark Pages
-                            {invoiceCount > 0 && (
-                              <span className="ml-2 text-xs text-primary font-semibold">
-                                {invoiceCount} invoice
-                                {invoiceCount !== 1 ? "s" : ""}
-                              </span>
-                            )}
-                          </Button>
-                        )}
-                      {!isDataExtracted && (
-                        <Button
-                          color="success"
-                          disabled={isExtracting || activeJobCount > 0 || isProcessingPdf}
-                          isLoading={isExtracting || isProcessingPdf}
-                          startContent={
-                            !isExtracting && !isProcessingPdf ? (
-                              <SparklesIcon size={18} />
-                            ) : undefined
-                          }
-                          variant="flat"
-                          onPress={async () => {
-                            setIsProcessingPdf(true);
-                            try {
-                              const processedFiles =
-                                await getProcessedFiles(selectedFiles);
-
-                              if (
-                                processedFiles.length > 1 ||
-                                (processedFiles.length === 1 &&
-                                  processedFiles[0] !== selectedFiles[0])
-                              ) {
-                                await startBatchJob(processedFiles);
-                                setLiveMessage(
-                                  `Started background processing of ${processedFiles.length} invoice${processedFiles.length !== 1 ? "s" : ""}.`,
-                                );
-                                setShowBatchNotification(true);
-                                if (batchNotificationTimeoutRef.current) {
-                                  clearTimeout(
-                                    batchNotificationTimeoutRef.current,
-                                  );
-                                }
-                                batchNotificationTimeoutRef.current = setTimeout(
-                                  () => {
-                                    setShowBatchNotification(false);
-                                    batchNotificationTimeoutRef.current = null;
-                                  },
-                                  5000,
-                                );
-                                handleClearImage();
-                              } else {
-                                // Single file, no splitting
-                                await handleExtractData();
-                              }
-                            } finally {
-                              setIsProcessingPdf(false);
-                            }
-                          }}
-                        >
-                          {isExtracting
-                            ? "Extracting..."
-                            : isProcessingPdf
-                            ? "Processing..."
-                            : `Extract${selectedFiles.length > 1 ? ` (${selectedFiles.length})` : ""}`}
-                        </Button>
-                      )}
-                      <Button
-                        color={currentHistoryId ? "default" : "danger"}
-                        isIconOnly={!currentHistoryId}
-                        startContent={
-                          currentHistoryId ? (
-                            <BackIcon size={18} />
-                          ) : (
-                            <TrashIcon size={18} />
-                          )
-                        }
-                        variant="flat"
-                        onPress={handleClearImage}
-                      >
-                        {currentHistoryId ? "Back" : null}
-                      </Button>
-                    </div>
-                  </div>
-                </Card>
+                <FilePreviewCarousel
+                  activeJobCount={activeJobCount}
+                  currentFileIndex={currentFileIndex}
+                  currentHistoryId={currentHistoryId}
+                  fileUrls={fileUrls}
+                  invoiceCount={invoiceCount}
+                  isDataExtracted={isDataExtracted}
+                  isExtracting={isExtracting}
+                  isProcessingPdf={isProcessingPdf}
+                  liveMessage={liveMessage}
+                  pdfPageCount={pdfPageCount}
+                  selectedFiles={selectedFiles}
+                  selectedPagesMap={selectedPagesMap}
+                  onClear={handleClearImage}
+                  onExtract={handleExtractWithProcessing}
+                  onLiveMessageChange={setLiveMessage}
+                  onPdfDrawerOpen={onPdfDrawerOpen}
+                  onSlideChange={setCurrentFileIndex}
+                />
 
                 {/* Extracted Data Card - Slides in from right */}
                 {isDataExtracted && (
-                  <Card className="p-4 animate-in slide-in-from-right duration-700">
-                    <div className="flex items-center justify-between mb-4">
-                      <h2 className="text-lg font-semibold">Extracted Data</h2>
-                      <div className="flex items-center gap-2">
-                        {/* Only show Save button for new extractions, not saved items */}
-                        {!isExtracting &&
-                          extractedText &&
-                          extractionUsage &&
-                          !currentHistoryId && (
-                            <Button
-                              color="success"
-                              size="sm"
-                              startContent={<SaveIcon size={18} />}
-                              variant="flat"
-                              onPress={handleSaveToHistory}
-                            >
-                              Save
-                            </Button>
-                          )}
-                        {devOptionsEnabled && extractionUsage && (
-                          <Button
-                            color="warning"
-                            size="sm"
-                            startContent={<ScrewdriverIcon size={18} />}
-                            variant="flat"
-                            onPress={onOpen}
-                          >
-                            Stats
-                          </Button>
-                        )}
-                        <Button
-                          color="primary"
-                          isDisabled={!extractedText}
-                          size="sm"
-                          startContent={
-                            isCopied ? (
-                              <CheckIcon size={18} />
-                            ) : (
-                              <CopyIcon size={18} />
-                            )
-                          }
-                          variant="flat"
-                          onPress={handleCopyText}
-                        >
-                          {isCopied ? "Copied!" : "Copy"}
-                        </Button>
-                      </div>
-                    </div>
-
-                    {/* Show Skeleton while loading */}
-                    {isExtracting && !hasReceivedData ? (
-                      <div className="space-y-3">
-                        <Skeleton className="rounded-lg">
-                          <div className="h-12 rounded-lg bg-default-300" />
-                        </Skeleton>
-                        <Skeleton className="w-4/5 rounded-lg">
-                          <div className="h-8 rounded-lg bg-default-200" />
-                        </Skeleton>
-                        <Skeleton className="w-3/5 rounded-lg">
-                          <div className="h-8 rounded-lg bg-default-200" />
-                        </Skeleton>
-                        <Skeleton className="w-5/6 rounded-lg">
-                          <div className="h-8 rounded-lg bg-default-300" />
-                        </Skeleton>
-                        <Skeleton className="w-2/5 rounded-lg">
-                          <div className="h-8 rounded-lg bg-default-200" />
-                        </Skeleton>
-                        <Skeleton className="w-4/5 rounded-lg">
-                          <div className="h-8 rounded-lg bg-default-300" />
-                        </Skeleton>
-                        <Skeleton className="w-3/5 rounded-lg">
-                          <div className="h-8 rounded-lg bg-default-200" />
-                        </Skeleton>
-                      </div>
-                    ) : extractedText ? (
-                      <CodeEditor language="json" value={extractedText} />
-                    ) : null}
-                  </Card>
+                  <ExtractedDataCard
+                    currentHistoryId={currentHistoryId}
+                    devOptionsEnabled={devOptionsEnabled}
+                    extractedText={extractedText}
+                    extractionUsage={extractionUsage}
+                    hasReceivedData={hasReceivedData}
+                    isCopied={isCopied}
+                    isExtracting={isExtracting}
+                    onCopy={handleCopyText}
+                    onOpenStats={onOpen}
+                    onSave={handleSaveToHistory}
+                  />
                 )}
               </div>
             </div>
 
             {/* JSON Table Section - Full Width Below - Only show after extraction is complete */}
             {isDataExtracted && !isExtracting && jsonContent && (
-              <Card className="w-full p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-semibold">
-                    Structured Data View
-                  </h2>
-                  {extractionUsage && (
-                    <div className="flex items-center gap-4 text-sm text-default-500">
-                      <Tooltip content="Input Tokens (Prompt/ Recipie + Document).">
-                        <div className="flex items-center gap-1.5 cursor-help">
-                          <InputTokenIcon size={16} />
-                          <span className="font-medium">
-                            {extractionUsage.inputTokens.toLocaleString()}
-                          </span>
-                          <span className="text-xs">in</span>
-                        </div>
-                      </Tooltip>
-                      <Tooltip content="Output Tokens Generated from LLM (extracted data).">
-                        <div className="flex items-center gap-1.5 cursor-help">
-                          <OutputTokenIcon size={16} />
-                          <span className="font-medium">
-                            {extractionUsage.outputTokens.toLocaleString()}
-                          </span>
-                          <span className="text-xs">out</span>
-                        </div>
-                      </Tooltip>
-                      <Tooltip content="Total tokens ( Input + Cached + Output ).">
-                        <div className="flex items-center gap-1.5 cursor-help">
-                          <TokenIcon size={16} />
-                          <span className="font-medium">
-                            {extractionUsage.totalTokens.toLocaleString()}
-                          </span>
-                          <span className="text-xs">total</span>
-                        </div>
-                      </Tooltip>
-                      {extractionUsage.cachedTokens &&
-                        extractionUsage.cachedTokens > 0 && (
-                          <Tooltip content="Cached tokens. These are reused to reduce costs and improve speed.">
-                            <div className="flex items-center gap-1.5 text-success-500 cursor-help">
-                              <CacheIcon size={16} />
-                              <span className="font-medium">
-                                {extractionUsage.cachedTokens.toLocaleString()}
-                              </span>
-                              <span className="text-xs">cached</span>
-                            </div>
-                          </Tooltip>
-                        )}
-                      <Tooltip content="Total time taken for the extraction process.">
-                        <div className="flex items-center gap-1.5 cursor-help">
-                          <ClockIcon size={16} />
-                          <span className="font-medium">
-                            {(extractionUsage.durationMs / 1000).toFixed(2)}s
-                          </span>
-                        </div>
-                      </Tooltip>
-                      {extractionUsage.estimatedCost !== undefined && (
-                        <Tooltip content="Total cost of the extraction request.(OpenAI GPT-4o pricing)">
-                          <div className="flex items-center gap-1.5 text-warning-500 cursor-help">
-                            <DollarIcon size={16} />
-                            <span className="font-medium">
-                              ${extractionUsage.estimatedCost.toFixed(6)}
-                            </span>
-                          </div>
-                        </Tooltip>
-                      )}
-                    </div>
-                  )}
-                </div>
-                <JsonTable jsonContent={jsonContent} />
-              </Card>
+              <StructuredDataView
+                extractionUsage={extractionUsage}
+                jsonContent={jsonContent}
+              />
             )}
           </>
         ) : (
-          <div
-            className={`flex flex-col items-center justify-center text-center flex-1 max-w-2xl w-full mx-auto transition-all duration-200 ${
-              isDragging ? "scale-95 opacity-50" : ""
-            }`}
-          >
-            <div
-              className={`border-2 border-dashed rounded-3xl p-16 w-full transition-all duration-300 ${
-                isDragging
-                  ? "border-primary-400/60 bg-primary-50 dark:bg-primary-950/20 shadow-lg shadow-primary-500/10"
-                  : "border-default-300/70 hover:border-default-400 hover:bg-default-50 dark:hover:bg-default-100/50 hover:shadow-md"
-              }`}
-            >
-              <div className="flex flex-col items-center gap-6">
-                <UploadIcon
-                  className={`transition-all duration-200 ${
-                    isDragging
-                      ? "text-primary-500 scale-110"
-                      : "text-default-400"
-                  }`}
-                  size={64}
-                />
-                <div>
-                  <p className="text-lg font-medium text-default-600 dark:text-default-400">
-                    {isDragging
-                      ? "Drop your file here"
-                      : "No file uploaded yet"}
-                  </p>
-                  <p className="text-sm text-default-400 mt-2">
-                    {isDragging ? (
-                      "Release to upload"
-                    ) : (
-                      <>
-                        Click the button below to upload an image or PDF
-                        <br />
-                        or simply drag and drop here
-                      </>
-                    )}
-                  </p>
-                </div>
-
-                {/* Upload Button when no file */}
-                <div className="mt-2">
-                  <input
-                    ref={fileInputRef}
-                    multiple
-                    accept="image/*,application/pdf"
-                    className="hidden"
-                    type="file"
-                    onChange={handleImageUpload}
-                  />
-                  <Button
-                    color="primary"
-                    size="lg"
-                    startContent={<UploadIcon size={20} />}
-                    variant="shadow"
-                    onPress={handleButtonClick}
-                  >
-                    Upload Files
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
+          <FileUploadZone
+            fileInputRef={fileInputRef}
+            isDragging={isDragging}
+            onFileSelect={processFiles}
+          />
         )}
 
         {/* Upload Button at Bottom - Only show when files are selected */}
@@ -1416,217 +1048,19 @@ export default function Home() {
       </Drawer>
 
       {/* History Drawer */}
-      <Drawer
+      <HistoryDrawer
+        currentHistoryId={currentHistoryId}
+        historyItems={historyItems}
+        isClearModalOpen={isClearModalOpen}
         isOpen={isHistoryOpen}
-        placement="left"
-        size="lg"
+        onClearAllHistory={handleClearAllHistory}
+        onClearModalOpen={onClearModalOpen}
+        onClearModalOpenChange={onClearModalOpenChange}
+        onDeleteHistoryItem={handleDeleteHistoryItem}
+        onLoadHistoryItem={handleLoadHistoryItem}
         onOpenChange={onHistoryOpenChange}
-      >
-        <DrawerContent>
-          {(onClose) => (
-            <>
-              <DrawerHeader className="flex flex-col gap-1">
-                <h2 className="text-xl font-bold">History</h2>
-                <div className="flex flex-col gap-1 text-sm text-default-500">
-                  <p>
-                    {historyItems.length} extraction
-                    {historyItems.length !== 1 ? "s" : ""}
-                  </p>
-                  {historyItems.length > 0 && (
-                    <div className="flex items-center gap-1">
-                      <DollarIcon size={16} />
-                      <span>
-                        Total cost: $
-                        {historyItems
-                          .reduce(
-                            (sum, item) =>
-                              sum + (item.usage?.estimatedCost || 0),
-                            0,
-                          )
-                          .toFixed(4)}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </DrawerHeader>
-              <DrawerBody>
-                {historyItems.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-full text-center text-default-400">
-                    <HistoryIcon size={48} />
-                    <p className="mt-4 text-lg">No history yet</p>
-                    <p className="text-sm mt-2">
-                      Your saved extractions will appear here
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {historyItems.map((item) => (
-                      <div
-                        key={item.id}
-                        className="cursor-pointer"
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => handleLoadHistoryItem(item)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            e.preventDefault();
-                            handleLoadHistoryItem(item);
-                          }
-                        }}
-                      >
-                        <Card
-                          className={`p-4 hover:bg-default-100 transition-colors ${
-                            currentHistoryId === item.id
-                              ? "border-2 border-primary"
-                              : ""
-                          }`}
-                        >
-                          <div className="flex items-start gap-3">
-                            {/* Preview thumbnail */}
-                            <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-default-200 flex items-center justify-center">
-                              {item.preview ? (
-                                <Image
-                                  alt="Preview"
-                                  className="w-full h-full object-cover"
-                                  src={item.preview}
-                                />
-                              ) : (
-                                <DocumentIcon
-                                  className="text-default-400"
-                                  size={32}
-                                />
-                              )}
-                            </div>
-
-                            {/* Content */}
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="flex-1 min-w-0">
-                                  <h3 className="font-semibold truncate">
-                                    {item.filename}
-                                  </h3>
-                                  <p className="text-xs text-default-500 mt-1">
-                                    {new Date(item.timestamp).toLocaleString()}
-                                  </p>
-                                </div>
-
-                                {/* Star button */}
-                                {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
-                                <div
-                                  onClick={(e) => e.stopPropagation()}
-                                  onKeyDown={(e) => e.stopPropagation()}
-                                >
-                                  <Button
-                                    isIconOnly
-                                    className="flex-shrink-0"
-                                    size="sm"
-                                    variant="light"
-                                    onPress={() => handleToggleStar(item.id)}
-                                  >
-                                    <StarIcon
-                                      fill={
-                                        item.starred ? "currentColor" : "none"
-                                      }
-                                      size={20}
-                                    />
-                                  </Button>
-                                </div>
-                              </div>
-
-                              {/* Stats */}
-                              <div className="flex items-center gap-3 mt-2 text-xs text-default-500">
-                                <div className="flex items-center gap-1">
-                                  <TokenIcon size={14} />
-                                  <span>
-                                    {item.usage.totalTokens.toLocaleString()}
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  <ClockIcon size={14} />
-                                  <span>
-                                    {(item.usage.durationMs / 1000).toFixed(1)}s
-                                  </span>
-                                </div>
-                                {item.usage.estimatedCost !== undefined && (
-                                  <div className="flex items-center gap-1">
-                                    <DollarIcon size={14} />
-                                    <span>
-                                      ${item.usage.estimatedCost.toFixed(4)}
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Delete button */}
-                            {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
-                            <div
-                              onClick={(e) => e.stopPropagation()}
-                              onKeyDown={(e) => e.stopPropagation()}
-                            >
-                              <Button
-                                isIconOnly
-                                className="flex-shrink-0"
-                                color="danger"
-                                size="sm"
-                                variant="light"
-                                onPress={() => handleDeleteHistoryItem(item.id)}
-                              >
-                                <TrashIcon size={16} />
-                              </Button>
-                            </div>
-                          </div>
-                        </Card>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </DrawerBody>
-              <DrawerFooter className="flex justify-between">
-                <Button
-                  color="danger"
-                  isDisabled={historyItems.length === 0}
-                  startContent={<TrashIcon size={18} />}
-                  variant="flat"
-                  onPress={onClearModalOpen}
-                >
-                  Clear All History
-                </Button>
-                <Button color="primary" variant="light" onPress={onClose}>
-                  Close
-                </Button>
-              </DrawerFooter>
-            </>
-          )}
-        </DrawerContent>
-      </Drawer>
-
-      {/* Clear History Confirmation Modal */}
-      <Modal isOpen={isClearModalOpen} onOpenChange={onClearModalOpenChange}>
-        <ModalContent>
-          {(onClose) => (
-            <>
-              <ModalHeader className="flex flex-col gap-1">
-                Clear All History?
-              </ModalHeader>
-              <ModalBody>
-                <p>
-                  This will permanently delete all history and stored files.
-                  This action cannot be undone.
-                </p>
-              </ModalBody>
-              <ModalFooter>
-                <Button color="default" variant="light" onPress={onClose}>
-                  Cancel
-                </Button>
-                <Button color="danger" onPress={handleClearAllHistory}>
-                  Clear All
-                </Button>
-              </ModalFooter>
-            </>
-          )}
-        </ModalContent>
-      </Modal>
+        onToggleStar={handleToggleStar}
+      />
 
       {/* PDF Page Drawer */}
       <PdfPageDrawer
